@@ -1,0 +1,21 @@
+{
+    "name": "abivia/configurable",
+    "description": "Support for creating class structures from JSON objects.",
+    "type": "library",
+    "require": {
+        "php": ">=7.1"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^8.1@dev"
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Alan Langford"
+        }
+    ],
+    "autoload": {
+        "psr-4": {"Abivia\\Configurable\\": "src/"}
+    },
+    "minimum-stability": "dev"
+}
