@@ -15,7 +15,9 @@
         }
     ],
     "autoload": {
-        "psr-4": {"Abivia\\Configurable\\": "src/"}
+        "classmap": [
+            "src/"
+        ]
     },
     "minimum-stability": "dev"
 }
