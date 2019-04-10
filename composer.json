@@ -19,5 +19,10 @@
             "src/"
         ]
     },
+    "autoload-dev": {
+      "classmap": [
+          "src/configurable/"
+        ]
+    },
     "minimum-stability": "dev"
 }
