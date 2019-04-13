@@ -1,6 +1,8 @@
 {
     "name": "abivia/configurable",
     "description": "Support for creating class structures from JSON objects.",
+    "keywords": ["config", "configuration", "json"],
+    "homepage": "https://gitlab.com/abivia/configurable",
     "type": "library",
     "require": {
         "php": ">=7.1"
@@ -14,6 +16,9 @@
             "name": "Alan Langford"
         }
     ],
+    "support": {
+        "issues": "https://gitlab.com/abivia/configurable/issues"
+    },
     "autoload": {
         "classmap": [
             "src/"
