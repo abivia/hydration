@@ -94,14 +94,14 @@ trait.
 configureClassMap() takes the name and value of a property as arguments and returns an
 object that has the key and className properties. In the simplest case, className is the
 name of a class that will be instantiated and configured. However, className may also be
-a closure, which allows the creation of data-specific objects when processing an array of
+a callable, which allows the creation of data-specific objects when processing an array of
 values.
 
 Arrays of Mixed Classes
 ---
 When an array contains elements that correspond to more than one class, the object
-returned by configureClassMap() can have a className that is a closure. In this case the
-closure will be called with the contents of each element in the array. The closure can
+returned by configureClassMap() can have a className that is a callable. In this case the
+callable will be called with the contents of each element in the array. The callable can
 then use the data to determine the appropriate class. An instance of the class is then
 created and
 
