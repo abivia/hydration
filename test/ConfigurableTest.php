@@ -6,6 +6,7 @@ class ConfigurableMain {
     use \Abivia\Configurable\Configurable;
 
     public $doNotConfigure;
+    public $ignored;
     public $mappedClass;
     public $prop1;
     public $prop2;
@@ -41,6 +42,10 @@ class ConfigurableMain {
 
     protected function configurePropertyBlock($property) {
         return in_array($property, ['doNotConfigure']);
+    }
+
+    protected function configurePropertyIgnore($property) {
+        return $property == 'ignored';
     }
 
     protected function configurePropertyMap($property) {
@@ -136,12 +141,39 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
         $this -> assertEquals('uninitialized', $obj -> prop1);
 	}
 
+    /**
+     * The presence of an undeclared property causes configure() to fail in strict mode.
+     */
 	public function testSimpleUndeclaredStrict() {
         $config = json_decode('{"undeclared":"purple"}');
         $obj = new ConfigurableMain();
         $obj -> prop1 = 'uninitialized';
         $this -> assertFalse($obj -> configure($config, true));
         $this -> assertEquals('uninitialized', $obj -> prop1);
+	}
+
+    /**
+     * The presence of a declared but ignored property succeeds but does not change
+     * the value in relaxed mode.
+     */
+	public function testSimpleIgnoreRelaxed() {
+        $config = json_decode('{"ignored":"purple"}');
+        $obj = new ConfigurableMain();
+        $obj -> ignored = 'uninitialized';
+        $this -> assertTrue($obj -> configure($config));
+        $this -> assertEquals('uninitialized', $obj -> ignored);
+	}
+
+    /**
+     * The presence of a declared but ignored property succeeds but does not change
+     * the value in strict mode.
+     */
+	public function testSimpleIgnoreStrict() {
+        $config = json_decode('{"ignored":"purple"}');
+        $obj = new ConfigurableMain();
+        $obj -> ignored = 'uninitialized';
+        $this -> assertTrue($obj -> configure($config, true));
+        $this -> assertEquals('uninitialized', $obj -> ignored);
 	}
 
 	public function testSimpleUndeclaredStrictException() {

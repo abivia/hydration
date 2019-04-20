@@ -20,11 +20,12 @@ trait Configurable {
             $property = $this -> configurePropertyMap($property);
             // Check for allowed/blocked/declared properties, block takes precedence.
             $blocked = $this -> configurePropertyBlock($property);
+            $ignored = $this -> configurePropertyIgnore($property);
             $allowed = $this -> configurePropertyAllow($property);
             if (!property_exists($this, $property)) {
                 $allowed = false;
             }
-            if ($allowed && !$blocked) {
+            if ($allowed && !$blocked && !$ignored) {
                 if (is_object($this -> $property) && method_exists($this -> $property, 'configure')) {
                     // The property is instantiated and Configurable, pass the value along.
                     if (!$this -> $property -> configure($value, $strict)) {
@@ -40,7 +41,7 @@ trait Configurable {
                 } else {
                     $result = false;
                 }
-            } elseif ($strict) {
+            } elseif ($strict && !$ignored) {
                 if (is_string($strict)) {
                     throw new $strict('Undefined property ' . $property . ' in ' . __CLASS__);
                 }
@@ -149,6 +150,15 @@ trait Configurable {
      * @return boolean true if the property is blocked.
      */
     protected function configurePropertyBlock($property) {
+        return false;
+    }
+
+    /**
+     * Check if the property should be ignored.
+     * @param string $property The property name.
+     * @return boolean true if the property is ignored.
+     */
+    protected function configurePropertyIgnore($property) {
         return false;
     }
 

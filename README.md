@@ -29,10 +29,12 @@ properties that can be set, and validate input data, just for a start.
 Filtering
 -----
 The properties of the configured object can be explicitly permitted by overriding the
-configurePropertyAllow() method or blocked by overriding the configurePropertyBlock()
-method, with blocking taking precedence. By default, attempts to set guarded properties
+configurePropertyAllow() method, blocked by overriding the configurePropertyBlock()
+method, or ignored via the configurePropertyIgnore() method. Ignore takes precedence, then
+blocking, then allow. By default, attempts to set guarded properties
 are ignored, but if the $strict parameter is either true or the name of a Throwable
-class, then the configuration will terminate when the invalid parameter is encountered.
+class, then the configuration will terminate when the invalid parameter is encountered,
+unless it has been explicitly ignored.
 
 For a JSON input like this
 ```json
