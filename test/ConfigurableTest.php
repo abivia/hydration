@@ -11,6 +11,7 @@ class ConfigurableMain {
     public $prop2;
     public $subAssoc;
     public $subClass;
+    public $subDynamic;
     public $validationFails = [];
 
     /**
@@ -25,10 +26,17 @@ class ConfigurableMain {
             'subAssoc' => ['className' => 'ConfigurableSub', 'key' => 'key'],
             'subClass' => ['className' => 'ConfigurableSub'],
         ];
-        if (isset($classMap[$property])) {
-            return (object) $classMap[$property];
+        $result = false;
+        if ($property == 'subDynamic') {
+            $result = new stdClass;
+            $result -> key = 'key';
+            $result -> className = function ($value) {
+                return 'ConfigurableType' . ucfirst($value -> type);
+            };
+        } elseif (isset($classMap[$property])) {
+            $result = (object) $classMap[$property];
         }
-        return false;
+        return $result;
     }
 
     protected function configurePropertyBlock($property) {
@@ -77,6 +85,22 @@ class ConfigurableSub {
         return in_array($property, ['conflicted', 'key', 'subProp1']);
     }
 
+}
+
+class ConfigurableTypeA {
+    use \Abivia\Configurable\Configurable;
+
+    public $key;
+    public $propA;
+    public $type;
+}
+
+class ConfigurableTypeB {
+    use \Abivia\Configurable\Configurable;
+
+    public $key;
+    public $propB;
+    public $type;
 }
 
 class ConfigurableTest extends \PHPUnit\Framework\TestCase {
@@ -263,6 +287,27 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
         $this -> assertEquals(2, count($obj -> subClass));
         $this -> assertInstanceOf('ConfigurableSub', $obj -> subClass[0]);
         $this -> assertEquals('e0', $obj -> subClass[0] -> subProp1);
+	}
+
+    /**
+     * Test use of a closure to trigger data-dependent instantiation
+     */
+	public function testSubclassDynamic() {
+        $config = json_decode('{"subDynamic":['
+            . '{"key":"item0","type":"a","propA":"e0"},'
+            . '{"key":"item1","type":"b","propB":"e1"}]'
+            . '}'
+        );
+        $obj = new ConfigurableMain();
+        $obj -> prop1 = 'uninitialized';
+        $this -> assertTrue($obj -> configure($config));
+        $this -> assertIsArray($obj -> subDynamic);
+        $this -> assertEquals(2, count($obj -> subDynamic));
+        $this -> assertTrue(isset($obj -> subDynamic['item0']));
+        $this -> assertInstanceOf('ConfigurableTypeA', $obj -> subDynamic['item0']);
+        $this -> assertEquals('e0', $obj -> subDynamic['item0'] -> propA);
+        $this -> assertInstanceOf('ConfigurableTypeB', $obj -> subDynamic['item1']);
+        $this -> assertEquals('e1', $obj -> subDynamic['item1'] -> propB);
 	}
 
 }

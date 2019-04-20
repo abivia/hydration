@@ -6,11 +6,26 @@ decoding a JSON configuration file into a corresponding set of PHP classes. Conf
 has options for converting arrays of objects into associative arrays using a property of
 the object. It can also validate inputs as well as guard and remap property names.
 
-Basic usage:
+Basic example:
 ```php
+class ConfigurableObject {
+    use \Abivia\Configurable\Configurable;
+
+    protected $userName;
+    protected $password;
+
+}
+$json = '{"userName": "admin"; "password": "insecure"]';
 $obj = new ConfigurableObject();
-$obj -> configure(json_decode(file_get_contents('config.json')));
+$obj -> configure(json_decode($json));
+echo $obj -> userName . ', ' . $obj -> password;
 ```
+Output:
+admin, insecure
+
+Pretty basic. But Configurable will also build PHP classes for nested objects, limit the
+properties that can be set, and validate input data, just for a start.
+
 Filtering
 -----
 The properties of the configured object can be explicitly permitted by overriding the
@@ -76,11 +91,27 @@ of classes that are contained within the top level class. These classes need to 
 a configure() method, either of their own making or by also adopting the Configurable
 trait.
 
+configureClassMap() takes the name and value of a property as arguments and returns an
+object that has the key and className properties. In the simplest case, className is the
+name of a class that will be instantiated and configured. However, className may also be
+a closure, which allows the creation of data-specific objects when processing an array of
+values.
+
+Arrays of Mixed Classes
+---
+When an array contains elements that correspond to more than one class, the object
+returned by configureClassMap() can have a className that is a closure. In this case the
+closure will be called with the contents of each element in the array. The closure can
+then use the data to determine the appropriate class. An instance of the class is then
+created and
+
 Making Arrays of Objects Associative
 ---
 The configureClassMap() method can also name a property of the contained class that will
 be used as the key in the construction of an associative array. See the example below for
 details.
+
+
 
 Examples
 ========

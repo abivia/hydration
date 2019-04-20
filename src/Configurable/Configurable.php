@@ -57,7 +57,7 @@ trait Configurable {
      * Map a property to a class.
      * @param string $property The current class property name.
      * @param mixed $value The value to be stored in the property, made available for inspection.
-     * @return mixed An object containing a class name and key, or false
+     * @return mixed An object containing a class name/callable and key, or false
      * @codeCoverageIgnore
      */
     protected function configureClassMap($property, $value) {
@@ -98,7 +98,6 @@ trait Configurable {
      */
     protected function configureInstance($specs, $property, $value, $strict) {
         $result = true;
-        $ourClass = $specs -> className;
         if (isset($specs -> key) && !is_array($value)) {
             // If it's keyed, force an array
             $value = [$value];
@@ -106,6 +105,11 @@ trait Configurable {
         if (is_array($value)) {
             $this -> $property = [];
             foreach ($value as $element) {
+                if (is_callable($specs -> className)) {
+                    $ourClass = call_user_func($specs -> className, $element);
+                } else {
+                    $ourClass = $specs -> className;
+                }
                 $obj = new $ourClass;
                 if (!$obj -> configure($element, $strict)) {
                     $result = false;
@@ -117,6 +121,11 @@ trait Configurable {
                 }
             }
         } else {
+            if (is_callable($specs -> className)) {
+                $ourClass = call_user_func($specs -> className, $value);
+            } else {
+                $ourClass = $specs -> className;
+            }
             $this -> $property = new $ourClass;
             if (!$this -> $property -> configure($value, $strict)) {
                 $result = false;
