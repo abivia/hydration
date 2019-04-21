@@ -115,10 +115,12 @@ trait Configurable {
                 if (!$obj -> configure($element, $strict)) {
                     $result = false;
                 }
-                if (isset($specs -> key) && $specs -> key) {
-                    $this -> $property[$obj -> {$specs -> key}] = $obj;
-                } else {
+                if (!isset($specs -> key) || $specs -> key == '') {
                     $this -> $property[] = $obj;
+                } elseif (is_array($specs -> key) && is_callable($specs -> key)) {
+                    call_user_func($specs -> key, $obj);
+                } else {
+                    $this -> $property[$obj -> {$specs -> key}] = $obj;
                 }
             }
         } else {
@@ -127,9 +129,14 @@ trait Configurable {
             } else {
                 $ourClass = $specs -> className;
             }
-            $this -> $property = new $ourClass;
-            if (!$this -> $property -> configure($value, $strict)) {
+            $obj = new $ourClass;
+            if (!$obj -> configure($value, $strict)) {
                 $result = false;
+            }
+            if (isset($specs -> key) && is_array($specs -> key) && is_callable($specs -> key)) {
+                call_user_func($specs -> key, $obj);
+            } else {
+                $this -> $property = $obj;
             }
         }
         return $result;

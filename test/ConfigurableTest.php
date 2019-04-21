@@ -11,9 +11,14 @@ class ConfigurableMain {
     public $prop1;
     public $prop2;
     public $subAssoc;
+    public $subCallable;
     public $subClass;
     public $subDynamic;
     public $validationFails = [];
+
+    protected function addToCallable($obj) {
+        $this -> subCallable[] = $obj;
+    }
 
     /**
      * Map a property to a class.
@@ -28,14 +33,24 @@ class ConfigurableMain {
             'subClass' => ['className' => 'ConfigurableSub'],
         ];
         $result = false;
-        if ($property == 'subDynamic') {
-            $result = new stdClass;
-            $result -> key = 'key';
-            $result -> className = function ($value) {
-                return 'ConfigurableType' . ucfirst($value -> type);
-            };
-        } elseif (isset($classMap[$property])) {
-            $result = (object) $classMap[$property];
+        switch ($property) {
+            case 'subCallable':
+                $result = new stdClass;
+                $result -> key = [$this, 'addToCallable'];
+                $result -> className = 'ConfigurableSub';
+                break;
+            case 'subDynamic':
+                $result = new stdClass;
+                $result -> key = 'key';
+                $result -> className = function ($value) {
+                    return 'ConfigurableType' . ucfirst($value -> type);
+                };
+                break;
+            default:
+                if (isset($classMap[$property])) {
+                    $result = (object) $classMap[$property];
+                }
+                break;
         }
         return $result;
     }
@@ -319,6 +334,17 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
         $this -> assertEquals(2, count($obj -> subClass));
         $this -> assertInstanceOf('ConfigurableSub', $obj -> subClass[0]);
         $this -> assertEquals('e0', $obj -> subClass[0] -> subProp1);
+	}
+
+	public function testSubclassCallableNew() {
+        $config = json_decode('{"subCallable":[{"subProp1":"e0"},{"subProp1":"e1"}]}');
+        $obj = new ConfigurableMain();
+        $this -> assertTrue($obj -> configure($config));
+        $this -> assertIsArray($obj -> subCallable);
+        $this -> assertEquals(2, count($obj -> subCallable));
+        $this -> assertInstanceOf('ConfigurableSub', $obj -> subCallable[0]);
+        $this -> assertEquals('e0', $obj -> subCallable[0] -> subProp1);
+        $this -> assertEquals('e1', $obj -> subCallable[1] -> subProp1);
 	}
 
     /**
