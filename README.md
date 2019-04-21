@@ -96,13 +96,12 @@ trait.
 `configureClassMap()` takes the name and value of a property as arguments and returns an
 object that has a required `className` property and an optional `key` property.
 
-### `className`
+### className
 In the simplest case, `className` is the
 name of a class that will be instantiated and configured. However, `className` may also be
-a callable, which allows the creation of data-specific objects when processing an array of
-values.
+a callable, which allows the creation of data-specific objects.
 
-### `key`
+### key
 The `key` property is optional. The way it is used differs slightly depending on whether
 the contained object will be assigned to a scalar or an array.
 
