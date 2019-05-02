@@ -43,7 +43,12 @@ class ConfigurableMain {
                 $result = new stdClass;
                 $result -> key = 'key';
                 $result -> className = function ($value) {
-                    return 'ConfigurableType' . ucfirst($value -> type);
+                    if (is_array($value)) {
+                        $ext = $value['type'];
+                    } else {
+                        $ext = $value -> type;
+                    }
+                    return 'ConfigurableType' . ucfirst($ext);
                 };
                 break;
             default:
@@ -125,6 +130,56 @@ class ConfigurableTypeB {
 
 class ConfigurableTest extends \PHPUnit\Framework\TestCase {
 
+    static $configSource = [
+        'testPropertyMapping' => '{"class":"purple"}',
+        'testSimpleValid' => '{"prop1":"blue"}',
+        'testSimpleIgnoreRelaxed' => '{"ignored":"purple"}',
+        'testSimpleIgnoreStrict' => '{"ignored":"purple"}',
+        'testSimpleInvalid' => '{"prop1":"purple"}',
+        'testSimpleUndeclaredRelaxed' => '{"undeclared":"purple"}',
+        'testSimpleUndeclaredStrict' => '{"undeclared":"purple"}',
+        'testSimpleUndeclaredStrictException' => '{"undeclared":"purple"}',
+        'testSubclassArrayNew' => '{"subClass":[{"subProp1":"e0"},{"subProp1":"e1"}]}',
+        'testSubclassArrayNewAssoc' => '{"subAssoc":[{"key":"item0","subProp1":"e0"},{"key":"item1","subProp1":"e1"}]}',
+        'testSubclassArrayNewAssocCast' => '{"subAssoc":{"key":"item0","subProp1":"e0"}}',
+        'testSubclassDynamic'  => '{"subDynamic":['
+            . '{"key":"item0","type":"a","propA":"e0"},'
+            . '{"key":"item1","type":"b","propB":"e1"}]'
+            . '}',
+        'testSubclassScalar' => '{"subClass":{"subProp1":"subprop"}}',
+        'testSubclassScalarNew' => '{"subClass":{"subProp1":"subprop"}}',
+    ];
+
+    static function getConfig($method, $format = '') {
+        if ($format == '') {
+            $source = substr($method, 0, -4);
+            $format = strtolower(substr($method, -4));
+        } else {
+            $source = $method;
+        }
+        if (!isset(self::$configSource[$source])) {
+            throw new Exception('Unknown configuration source ' . $source);
+        }
+        switch ($format) {
+            case 'json':
+                $result = json_decode(self::$configSource[$source]);
+                break;
+            case 'yaml':
+                $result = json_decode(self::$configSource[$source], true);
+                if ($result) {
+                    $yaml = yaml_emit($result);
+                    $result = yaml_parse($yaml);
+                }
+                break;
+            default:
+                throw new Exception('Unknown format ' . $format);
+        }
+        if (!$result) {
+            throw new Execption('Configuration source error in ' . $method);
+        }
+        return $result;
+    }
+
 	public function testConfigurableInstantiation() {
         $obj = new ConfigurableMain();
 		$this -> assertInstanceOf('ConfigurableMain', $obj);
@@ -133,38 +188,46 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
 	}
 
 	public function testSimpleValid() {
-        $config = json_decode('{"prop1":"blue"}');
-        $obj = new ConfigurableMain();
-        $obj -> prop1 = 'uninitialized';
-        $this -> assertTrue($obj -> configure($config));
-        $this -> assertEquals('blue', $obj -> prop1);
+        foreach (['json', 'yaml'] as $format) {
+            $config = self::getConfig(__FUNCTION__, $format);
+            $obj = new ConfigurableMain();
+            $obj -> prop1 = 'uninitialized';
+            $this -> assertTrue($obj -> configure($config));
+            $this -> assertEquals('blue', $obj -> prop1);
+        }
 	}
 
 	public function testSimpleInvalid() {
-        $config = json_decode('{"prop1":"purple"}');
-        $obj = new ConfigurableMain();
-        $obj -> prop1 = 'uninitialized';
-        $this -> assertFalse($obj -> configure($config));
-        $this -> assertEquals('uninitialized', $obj -> prop1);
+        foreach (['json', 'yaml'] as $format) {
+            $config = self::getConfig(__FUNCTION__, $format);
+            $obj = new ConfigurableMain();
+            $obj -> prop1 = 'uninitialized';
+            $this -> assertFalse($obj -> configure($config));
+            $this -> assertEquals('uninitialized', $obj -> prop1);
+        }
 	}
 
 	public function testSimpleUndeclaredRelaxed() {
-        $config = json_decode('{"undeclared":"purple"}');
-        $obj = new ConfigurableMain();
-        $obj -> prop1 = 'uninitialized';
-        $this -> assertTrue($obj -> configure($config));
-        $this -> assertEquals('uninitialized', $obj -> prop1);
+        foreach (['json', 'yaml'] as $format) {
+            $config = self::getConfig(__FUNCTION__, $format);
+            $obj = new ConfigurableMain();
+            $obj -> prop1 = 'uninitialized';
+            $this -> assertTrue($obj -> configure($config));
+            $this -> assertEquals('uninitialized', $obj -> prop1);
+        }
 	}
 
     /**
      * The presence of an undeclared property causes configure() to fail in strict mode.
      */
 	public function testSimpleUndeclaredStrict() {
-        $config = json_decode('{"undeclared":"purple"}');
-        $obj = new ConfigurableMain();
-        $obj -> prop1 = 'uninitialized';
-        $this -> assertFalse($obj -> configure($config, true));
-        $this -> assertEquals('uninitialized', $obj -> prop1);
+        foreach (['json', 'yaml'] as $format) {
+            $config = self::getConfig(__FUNCTION__, $format);
+            $obj = new ConfigurableMain();
+            $obj -> prop1 = 'uninitialized';
+            $this -> assertFalse($obj -> configure($config, true));
+            $this -> assertEquals('uninitialized', $obj -> prop1);
+        }
 	}
 
     /**
@@ -172,11 +235,13 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
      * the value in relaxed mode.
      */
 	public function testSimpleIgnoreRelaxed() {
-        $config = json_decode('{"ignored":"purple"}');
-        $obj = new ConfigurableMain();
-        $obj -> ignored = 'uninitialized';
-        $this -> assertTrue($obj -> configure($config));
-        $this -> assertEquals('uninitialized', $obj -> ignored);
+        foreach (['json', 'yaml'] as $format) {
+            $config = self::getConfig(__FUNCTION__, $format);
+            $obj = new ConfigurableMain();
+            $obj -> ignored = 'uninitialized';
+            $this -> assertTrue($obj -> configure($config));
+            $this -> assertEquals('uninitialized', $obj -> ignored);
+        }
 	}
 
     /**
@@ -184,30 +249,34 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
      * the value in strict mode.
      */
 	public function testSimpleIgnoreStrict() {
-        $config = json_decode('{"ignored":"purple"}');
-        $obj = new ConfigurableMain();
-        $obj -> ignored = 'uninitialized';
-        $this -> assertTrue($obj -> configure($config, true));
-        $this -> assertEquals('uninitialized', $obj -> ignored);
+        foreach (['json', 'yaml'] as $format) {
+            $config = self::getConfig(__FUNCTION__, $format);
+            $obj = new ConfigurableMain();
+            $obj -> ignored = 'uninitialized';
+            $this -> assertTrue($obj -> configure($config, true));
+            $this -> assertEquals('uninitialized', $obj -> ignored);
+        }
 	}
 
 	public function testSimpleUndeclaredStrictException() {
-        $config = json_decode('{"undeclared":"purple"}');
-        $obj = new ConfigurableMain();
-        $obj -> prop1 = 'uninitialized';
-        $success = null;
-        try {
-            $obj -> configure($config, 'BadConfigException');
-            $success = true;
-        } catch (BadConfigException $ex) {
-            $success = false;
-            $this -> assertEquals('Undefined property undeclared in ConfigurableMain', $ex -> getMessage());
+        foreach (['json', 'yaml'] as $format) {
+            $config = self::getConfig(__FUNCTION__, $format);
+            $obj = new ConfigurableMain();
+            $obj -> prop1 = 'uninitialized';
+            $success = null;
+            try {
+                $obj -> configure($config, 'BadConfigException');
+                $success = true;
+            } catch (BadConfigException $ex) {
+                $success = false;
+                $this -> assertEquals('Undefined property undeclared in ConfigurableMain', $ex -> getMessage());
+            }
+            $this -> assertTrue($success === false);
         }
-        $this -> assertTrue($success === false);
 	}
 
 	public function testPropertyMapping() {
-        $config = json_decode('{"class":"purple"}');
+        $config = self::getConfig(__FUNCTION__, 'json');
         $obj = new ConfigurableMain();
         $obj -> mappedClass = 'uninitialized';
         $this -> assertTrue($obj -> configure($config));
@@ -258,23 +327,33 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
         $this -> assertEquals('uninitialized', $obj -> conflicted);
 	}
 
+    /**
+     * Test initializing a pre-existing subclass.
+     */
 	public function testSubclassScalar() {
-        $config = json_decode('{"subClass":{"subProp1":"subprop"}}');
-        $obj = new ConfigurableMain();
-        $obj -> subClass = new ConfigurableSub();
-        $obj -> subClass -> subProp1 = 'uninitialized';
-        $this -> assertTrue($obj -> configure($config));
-        $this -> assertInstanceOf('ConfigurableSub', $obj -> subClass);
-        $this -> assertEquals('subprop', $obj -> subClass -> subProp1);
+        foreach (['json', 'yaml'] as $format) {
+            $config = self::getConfig(__FUNCTION__, $format);
+            $obj = new ConfigurableMain();
+            $obj -> subClass = new ConfigurableSub();
+            $obj -> subClass -> subProp1 = 'uninitialized';
+            $this -> assertTrue($obj -> configure($config));
+            $this -> assertInstanceOf('ConfigurableSub', $obj -> subClass);
+            $this -> assertEquals('subprop', $obj -> subClass -> subProp1);
+        }
 	}
 
+    /**
+     * Test initializing an internally instantiated subclass.
+     */
 	public function testSubclassScalarNew() {
-        $config = json_decode('{"subClass":{"subProp1":"subprop"}}');
-        $obj = new ConfigurableMain();
-        $obj -> prop1 = 'uninitialized';
-        $this -> assertTrue($obj -> configure($config));
-        $this -> assertInstanceOf('ConfigurableSub', $obj -> subClass);
-        $this -> assertEquals('subprop', $obj -> subClass -> subProp1);
+        foreach (['json', 'yaml'] as $format) {
+            $config = self::getConfig('testSubclassScalar', $format);
+            $obj = new ConfigurableMain();
+            $obj -> prop1 = 'uninitialized';
+            $this -> assertTrue($obj -> configure($config));
+            $this -> assertInstanceOf('ConfigurableSub', $obj -> subClass);
+            $this -> assertEquals('subprop', $obj -> subClass -> subProp1);
+        }
 	}
 
 	public function testSubclassScalarNewInvalid() {
@@ -286,43 +365,49 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
 	}
 
 	public function testSubclassArrayNew() {
-        $config = json_decode('{"subClass":[{"subProp1":"e0"},{"subProp1":"e1"}]}');
-        $obj = new ConfigurableMain();
-        $obj -> prop1 = 'uninitialized';
-        $this -> assertTrue($obj -> configure($config));
-        $this -> assertIsArray($obj -> subClass);
-        $this -> assertEquals(2, count($obj -> subClass));
-        $this -> assertInstanceOf('ConfigurableSub', $obj -> subClass[0]);
-        $this -> assertEquals('e0', $obj -> subClass[0] -> subProp1);
-        $this -> assertEquals('e1', $obj -> subClass[1] -> subProp1);
+        foreach (['json', 'yaml'] as $format) {
+            $config = self::getConfig(__FUNCTION__, $format);
+            $obj = new ConfigurableMain();
+            $obj -> prop1 = 'uninitialized';
+            $this -> assertTrue($obj -> configure($config));
+            $this -> assertIsArray($obj -> subClass);
+            $this -> assertEquals(2, count($obj -> subClass));
+            $this -> assertInstanceOf('ConfigurableSub', $obj -> subClass[0]);
+            $this -> assertEquals('e0', $obj -> subClass[0] -> subProp1);
+            $this -> assertEquals('e1', $obj -> subClass[1] -> subProp1);
+        }
 	}
 
 	public function testSubclassArrayNewAssoc() {
-        $config = json_decode('{"subAssoc":[{"key":"item0","subProp1":"e0"},{"key":"item1","subProp1":"e1"}]}');
-        $obj = new ConfigurableMain();
-        $obj -> prop1 = 'uninitialized';
-        $this -> assertTrue($obj -> configure($config));
-        $this -> assertIsArray($obj -> subAssoc);
-        $this -> assertEquals(2, count($obj -> subAssoc));
-        $this -> assertTrue(isset($obj -> subAssoc['item0']));
-        $this -> assertInstanceOf('ConfigurableSub', $obj -> subAssoc['item0']);
-        $this -> assertEquals('e0', $obj -> subAssoc['item0'] -> subProp1);
-        $this -> assertEquals('e1', $obj -> subAssoc['item1'] -> subProp1);
+        foreach (['json', 'yaml'] as $format) {
+            $config = self::getConfig(__FUNCTION__, $format);
+            $obj = new ConfigurableMain();
+            $obj -> prop1 = 'uninitialized';
+            $this -> assertTrue($obj -> configure($config));
+            $this -> assertIsArray($obj -> subAssoc);
+            $this -> assertEquals(2, count($obj -> subAssoc));
+            $this -> assertTrue(isset($obj -> subAssoc['item0']));
+            $this -> assertInstanceOf('ConfigurableSub', $obj -> subAssoc['item0']);
+            $this -> assertEquals('e0', $obj -> subAssoc['item0'] -> subProp1);
+            $this -> assertEquals('e1', $obj -> subAssoc['item1'] -> subProp1);
+        }
 	}
 
     /**
      * Check that we cast to an array when a key is specified
      */
 	public function testSubclassArrayNewAssocCast() {
-        $config = json_decode('{"subAssoc":{"key":"item0","subProp1":"e0"}}');
-        $obj = new ConfigurableMain();
-        $obj -> prop1 = 'uninitialized';
-        $this -> assertTrue($obj -> configure($config));
-        $this -> assertIsArray($obj -> subAssoc);
-        $this -> assertEquals(1, count($obj -> subAssoc));
-        $this -> assertTrue(isset($obj -> subAssoc['item0']));
-        $this -> assertInstanceOf('ConfigurableSub', $obj -> subAssoc['item0']);
-        $this -> assertEquals('e0', $obj -> subAssoc['item0'] -> subProp1);
+        foreach (['json', 'yaml'] as $format) {
+            $config = self::getConfig(__FUNCTION__, $format);
+            $obj = new ConfigurableMain();
+            $obj -> prop1 = 'uninitialized';
+            $this -> assertTrue($obj -> configure($config));
+            $this -> assertIsArray($obj -> subAssoc);
+            $this -> assertEquals(1, count($obj -> subAssoc));
+            $this -> assertTrue(isset($obj -> subAssoc['item0']));
+            $this -> assertInstanceOf('ConfigurableSub', $obj -> subAssoc['item0']);
+            $this -> assertEquals('e0', $obj -> subAssoc['item0'] -> subProp1);
+        }
 	}
 
 	public function testSubclassArrayNewInvalid() {
@@ -351,21 +436,19 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
      * Test use of a closure to trigger data-dependent instantiation
      */
 	public function testSubclassDynamic() {
-        $config = json_decode('{"subDynamic":['
-            . '{"key":"item0","type":"a","propA":"e0"},'
-            . '{"key":"item1","type":"b","propB":"e1"}]'
-            . '}'
-        );
-        $obj = new ConfigurableMain();
-        $obj -> prop1 = 'uninitialized';
-        $this -> assertTrue($obj -> configure($config));
-        $this -> assertIsArray($obj -> subDynamic);
-        $this -> assertEquals(2, count($obj -> subDynamic));
-        $this -> assertTrue(isset($obj -> subDynamic['item0']));
-        $this -> assertInstanceOf('ConfigurableTypeA', $obj -> subDynamic['item0']);
-        $this -> assertEquals('e0', $obj -> subDynamic['item0'] -> propA);
-        $this -> assertInstanceOf('ConfigurableTypeB', $obj -> subDynamic['item1']);
-        $this -> assertEquals('e1', $obj -> subDynamic['item1'] -> propB);
+        foreach (['json', 'yaml'] as $format) {
+            $config = self::getConfig(__FUNCTION__, $format);
+            $obj = new ConfigurableMain();
+            $obj -> prop1 = 'uninitialized';
+            $this -> assertTrue($obj -> configure($config));
+            $this -> assertIsArray($obj -> subDynamic);
+            $this -> assertEquals(2, count($obj -> subDynamic));
+            $this -> assertTrue(isset($obj -> subDynamic['item0']));
+            $this -> assertInstanceOf('ConfigurableTypeA', $obj -> subDynamic['item0']);
+            $this -> assertEquals('e0', $obj -> subDynamic['item0'] -> propA);
+            $this -> assertInstanceOf('ConfigurableTypeB', $obj -> subDynamic['item1']);
+            $this -> assertEquals('e1', $obj -> subDynamic['item1'] -> propB);
+        }
 	}
 
 }

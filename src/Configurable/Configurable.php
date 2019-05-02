@@ -99,13 +99,16 @@ trait Configurable {
      */
     protected function configureInstance($specs, $property, $value, $strict) {
         $result = true;
+        if (is_array($value) && array_key_first($value) !== 0) {
+            $value = (object) $value;
+        }
         if (isset($specs -> key) && !is_array($value)) {
             // If it's keyed, force an array
             $value = [$value];
         }
         if (is_array($value)) {
             $this -> $property = [];
-            foreach ($value as $element) {
+            foreach ($value as $key => $element) {
                 if (is_callable($specs -> className)) {
                     $ourClass = call_user_func($specs -> className, $element);
                 } else {
