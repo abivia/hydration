@@ -1,6 +1,6 @@
 {
     "name": "abivia/configurable",
-    "description": "Support for creating class structures from JSON objects.",
+    "description": "Support for creating class structures from JSON/YAML objects.",
     "keywords": ["config", "configuration", "json", "yaml"],
     "homepage": "https://gitlab.com/abivia/configurable",
     "type": "library",
