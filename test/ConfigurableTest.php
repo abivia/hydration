@@ -132,16 +132,18 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
 
     static $configSource = [
         'testPropertyMapping' => '{"class":"purple"}',
-        'testSimpleValid' => '{"prop1":"blue"}',
+        'testSimpleEmptyArray' => '{"prop2":[]}',
         'testSimpleIgnoreRelaxed' => '{"ignored":"purple"}',
         'testSimpleIgnoreStrict' => '{"ignored":"purple"}',
         'testSimpleInvalid' => '{"prop1":"purple"}',
         'testSimpleUndeclaredRelaxed' => '{"undeclared":"purple"}',
         'testSimpleUndeclaredStrict' => '{"undeclared":"purple"}',
         'testSimpleUndeclaredStrictException' => '{"undeclared":"purple"}',
+        'testSimpleValid' => '{"prop1":"blue"}',
         'testSubclassArrayNew' => '{"subClass":[{"subProp1":"e0"},{"subProp1":"e1"}]}',
         'testSubclassArrayNewAssoc' => '{"subAssoc":[{"key":"item0","subProp1":"e0"},{"key":"item1","subProp1":"e1"}]}',
         'testSubclassArrayNewAssocCast' => '{"subAssoc":{"key":"item0","subProp1":"e0"}}',
+        'testSubclassArrayNewEmpty' => '{"subClass":[]}',
         'testSubclassDynamic'  => '{"subDynamic":['
             . '{"key":"item0","type":"a","propA":"e0"},'
             . '{"key":"item1","type":"b","propB":"e1"}]'
@@ -204,6 +206,19 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
             $obj -> prop1 = 'uninitialized';
             $this -> assertFalse($obj -> configure($config));
             $this -> assertEquals('uninitialized', $obj -> prop1);
+        }
+	}
+
+    /**
+     * Make sure a basic empty array returns an empty array
+     */
+	public function testSimpleEmptyArray() {
+        foreach (['json', 'yaml'] as $format) {
+            $config = self::getConfig(__FUNCTION__, $format);
+            $obj = new ConfigurableMain();
+            $obj -> prop2 = 'uninitialized';
+            $this -> assertTrue($obj -> configure($config));
+            $this -> assertEquals([], $obj -> prop2);
         }
 	}
 
@@ -407,6 +422,19 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
             $this -> assertTrue(isset($obj -> subAssoc['item0']));
             $this -> assertInstanceOf('ConfigurableSub', $obj -> subAssoc['item0']);
             $this -> assertEquals('e0', $obj -> subAssoc['item0'] -> subProp1);
+        }
+	}
+
+    /**
+     * Check that we handle an empty subclass array
+     */
+	public function testSubclassArrayNewEmpty() {
+        foreach (['json', 'yaml'] as $format) {
+            $config = self::getConfig(__FUNCTION__, $format);
+            $obj = new ConfigurableMain();
+            $this -> assertTrue($obj -> configure($config));
+            $this -> assertIsArray($obj -> subClass);
+            $this -> assertEquals(0, count($obj -> subClass));
         }
 	}
 

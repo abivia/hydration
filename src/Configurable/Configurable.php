@@ -99,7 +99,11 @@ trait Configurable {
      */
     protected function configureInstance($specs, $property, $value, $strict) {
         $result = true;
-        if (is_array($value) && array_key_first($value) !== 0) {
+        if (
+            is_array($value)
+            && array_key_first($value) !== 0
+            && array_key_first($value) !== null
+        ) {
             $value = (object) $value;
         }
         if (isset($specs -> key) && !is_array($value)) {
