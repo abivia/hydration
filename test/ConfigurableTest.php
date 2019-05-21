@@ -13,6 +13,7 @@ class ConfigurableMain {
     public $subAssoc;
     public $subCallable;
     public $subClass;
+    public $subClass2;
     public $subDynamic;
     public $validationFails = [];
 
@@ -38,6 +39,10 @@ class ConfigurableMain {
                 $result = new stdClass;
                 $result -> key = [$this, 'addToCallable'];
                 $result -> className = 'ConfigurableSub';
+                break;
+            case 'subClass2':
+                // Test simple class name in a string
+                $result = 'ConfigurableSub';
                 break;
             case 'subDynamic':
                 $result = new stdClass;
@@ -150,6 +155,7 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
             . '}',
         'testSubclassScalar' => '{"subClass":{"subProp1":"subprop"}}',
         'testSubclassScalarNew' => '{"subClass":{"subProp1":"subprop"}}',
+        'testSubclassStringNew' => '{"subClass2":{"subProp1":"subprop"}}',
     ];
 
     static function getConfig($method, $format = '') {
@@ -377,6 +383,20 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
         $obj -> prop1 = 'uninitialized';
         $this -> assertFalse($obj -> configure($config, true));
         $this -> assertInstanceOf('ConfigurableSub', $obj -> subClass);
+	}
+
+    /**
+     * Test initializing an internally instantiated subclass with a string class specification.
+     */
+	public function testSubclassStringNew() {
+        foreach (['json', 'yaml'] as $format) {
+            $config = self::getConfig(__FUNCTION__, $format);
+            $obj = new ConfigurableMain();
+            $obj -> prop1 = 'uninitialized';
+            $this -> assertTrue($obj -> configure($config));
+            $this -> assertInstanceOf('ConfigurableSub', $obj -> subClass2);
+            $this -> assertEquals('subprop', $obj -> subClass2 -> subProp1);
+        }
 	}
 
 	public function testSubclassArrayNew() {

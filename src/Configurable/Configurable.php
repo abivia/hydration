@@ -58,7 +58,7 @@ trait Configurable {
      * Map a property to a class.
      * @param string $property The current class property name.
      * @param mixed $value The value to be stored in the property, made available for inspection.
-     * @return mixed An object containing a class name/callable and key, or false
+     * @return mixed An object containing a class name/callable and key, a class name, or false
      * @codeCoverageIgnore
      */
     protected function configureClassMap($property, $value) {
@@ -92,7 +92,7 @@ trait Configurable {
 
     /**
      * Create a new object or array of objects and assign values.
-     * @param object $specs Information on the class/array to be created.
+     * @param object|string $specs Information on the class/array to be created.
      * @param string $property Name of the property to be created.
      * @param mixed $value Value of the property.
      * @return boolean True when the value is valid for the property.
@@ -113,7 +113,9 @@ trait Configurable {
         if (is_array($value)) {
             $this -> $property = [];
             foreach ($value as $key => $element) {
-                if (is_callable($specs -> className)) {
+                if (is_string($specs)) {
+                    $ourClass = $specs;
+                } elseif (is_callable($specs -> className)) {
                     $ourClass = call_user_func($specs -> className, $element);
                 } else {
                     $ourClass = $specs -> className;
@@ -131,7 +133,9 @@ trait Configurable {
                 }
             }
         } else {
-            if (is_callable($specs -> className)) {
+            if (is_string($specs)) {
+                $ourClass = $specs;
+            } elseif (is_callable($specs -> className)) {
                 $ourClass = call_user_func($specs -> className, $value);
             } else {
                 $ourClass = $specs -> className;
