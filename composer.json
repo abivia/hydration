@@ -1,7 +1,7 @@
 {
     "name": "abivia/configurable",
-    "description": "Support for creating class structures from JSON/YAML objects.",
-    "keywords": ["config", "configuration", "json", "yaml"],
+    "description": "Trait to support creating complex nested class structures from JSON/YAML objects.",
+    "keywords": ["config", "configuration", "deserialization", "hydration", "json", "yaml"],
     "homepage": "https://gitlab.com/abivia/configurable",
     "type": "library",
     "require": {
