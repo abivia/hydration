@@ -11,6 +11,7 @@ class ConfigurableMain {
     public $prop1;
     public $prop2;
     public $subAssoc;
+    public $subAssocP;
     public $subCallable;
     public $subClass;
     public $subClass2;
@@ -31,6 +32,7 @@ class ConfigurableMain {
     protected function configureClassMap($property, $value) {
         static $classMap = [
             'subAssoc' => ['className' => 'ConfigurableSub', 'key' => 'key'],
+            'subAssocP' => ['className' => 'ConfigurableSub', 'key' => 'getKeyP', 'keyIsMethod' => true],
             'subClass' => ['className' => 'ConfigurableSub'],
         ];
         $result = false;
@@ -104,6 +106,7 @@ class ConfigurableSub {
 
     public $conflicted;
     public $key;
+    protected $keyP;
     public $notConfigurable;
     public $subProp1;
 
@@ -112,7 +115,11 @@ class ConfigurableSub {
     }
 
     protected function configurePropertyAllow($property) {
-        return in_array($property, ['conflicted', 'key', 'subProp1']);
+        return in_array($property, ['conflicted', 'key', 'keyP', 'subProp1']);
+    }
+
+    public function getKeyP() {
+        return $this -> keyP;
     }
 
 }
@@ -148,6 +155,7 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
         'testSubclassArrayNew' => '{"subClass":[{"subProp1":"e0"},{"subProp1":"e1"}]}',
         'testSubclassArrayNewAssoc' => '{"subAssoc":[{"key":"item0","subProp1":"e0"},{"key":"item1","subProp1":"e1"}]}',
         'testSubclassArrayNewAssocCast' => '{"subAssoc":{"key":"item0","subProp1":"e0"}}',
+        'testSubclassArrayNewAssocP' => '{"subAssocP":[{"keyP":"item0","subProp1":"e0"},{"keyP":"item1","subProp1":"e1"}]}',
         'testSubclassArrayNewEmpty' => '{"subClass":[]}',
         'testSubclassDynamic'  => '{"subDynamic":['
             . '{"key":"item0","type":"a","propA":"e0"},'
@@ -413,6 +421,9 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
         }
 	}
 
+    /**
+     * Test populating an associative array when the key property is public.
+     */
 	public function testSubclassArrayNewAssoc() {
         foreach (['json', 'yaml'] as $format) {
             $config = self::getConfig(__FUNCTION__, $format);
@@ -442,6 +453,25 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
             $this -> assertTrue(isset($obj -> subAssoc['item0']));
             $this -> assertInstanceOf('ConfigurableSub', $obj -> subAssoc['item0']);
             $this -> assertEquals('e0', $obj -> subAssoc['item0'] -> subProp1);
+        }
+	}
+
+    /**
+     * Test populating an associative array when the key property must be accessed
+     * via a getter.
+     */
+	public function testSubclassArrayNewAssocP() {
+        foreach (['json', 'yaml'] as $format) {
+            $config = self::getConfig(__FUNCTION__, $format);
+            $obj = new ConfigurableMain();
+            $obj -> prop1 = 'uninitialized';
+            $this -> assertTrue($obj -> configure($config));
+            $this -> assertIsArray($obj -> subAssocP);
+            $this -> assertEquals(2, count($obj -> subAssocP));
+            $this -> assertTrue(isset($obj -> subAssocP['item0']));
+            $this -> assertInstanceOf('ConfigurableSub', $obj -> subAssocP['item0']);
+            $this -> assertEquals('e0', $obj -> subAssocP['item0'] -> subProp1);
+            $this -> assertEquals('e1', $obj -> subAssocP['item1'] -> subProp1);
         }
 	}
 

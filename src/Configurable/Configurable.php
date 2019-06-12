@@ -128,6 +128,8 @@ trait Configurable {
                     $this -> $property[] = $obj;
                 } elseif (is_array($specs -> key) && is_callable($specs -> key)) {
                     call_user_func($specs -> key, $obj);
+                } elseif (isset($specs -> keyIsMethod) && $specs -> keyIsMethod) {
+                    $this -> $property[$obj -> {$specs -> key}()] = $obj;
                 } else {
                     $this -> $property[$obj -> {$specs -> key}] = $obj;
                 }
@@ -144,11 +146,7 @@ trait Configurable {
             if (!$obj -> configure($value, $strict)) {
                 $result = false;
             }
-            if (isset($specs -> key) && is_array($specs -> key) && is_callable($specs -> key)) {
-                call_user_func($specs -> key, $obj);
-            } else {
-                $this -> $property = $obj;
-            }
+            $this -> $property = $obj;
         }
         return $result;
     }

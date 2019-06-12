@@ -146,23 +146,19 @@ a callable that takes the current property value as an argument.
 This allows the creation of data-specific object classes.
 
 ### key
-The `key` property is optional. The way it is used differs slightly depending on whether
-the contained object will be assigned to a scalar or an array.
+The `key` property is optional and tells Configurable to populate an array.
 
-For scalars,
- - if `key` is absent or an empty string, scalar contained classes
-will simply be assigned to the named property, and
-- if `key` is assigned, it must be a callable
-in the form of an array (typically to a method in the current class instance). The
-contained class is passed to this function as an argument.
-This is useful when you want to assign the property via a setter.
+ - if `key` is absent or blank, the constructed object is appended to the array,
+ - if `key` is a string, then it is taken as the name of a property or method (if
+`keyIsMethod` is true) in the constructed object, and this value is used as the
+key for an associative array, and
+ - if `key` is a callable array, then it is called with the object under construction
+as an argument.
 
-For arrays,
- - if `key` is absent or blank, the contained object is appended to the array,
- - if `key` is a string, then it is taken as the name of a property in the contained
-object, and this value is used as the key for an associative array, and
- - if `key` is a callable array, then it is called with the contained class as an
-argument.
+### keyIsMethod
+The `keyIsMethod` property is only used when `key` is present and not a callable. When
+set, `key` is treated as a method of the constructed object. Typically this is a getter.
+
 
 Examples
 ========
