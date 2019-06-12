@@ -1,15 +1,13 @@
-<?xml version="1.0"?>
-<!--
-
--->
-
-<!-- see http://www.phpunit.de/wiki/Documentation -->
-<!--phpunit bootstrap="/path/to/bootstrap.php"
-         colors="false"
-         convertErrorsToExceptions="true"
-         convertNoticesToExceptions="true"
-         convertWarningsToExceptions="true"
-         stopOnFailure="true">
-</phpunit-->
-
-<phpunit colors="false" />
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit colors="true" bootstrap="../vendor/autoload.php">
+    <testsuites>
+        <testsuite name="abivia/configurable">
+            <directory>./tests/</directory>
+        </testsuite>
+    </testsuites>
+    <filter>
+        <whitelist processUncoveredFilesFromWhitelist="true">
+            <directory suffix=".php">../src</directory>
+        </whitelist>
+    </filter>
+</phpunit>
