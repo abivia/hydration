@@ -6,14 +6,29 @@ namespace Abivia\Configurable;
  */
 trait Configurable {
 
+    static protected $configureErrors;
+
     /**
      * Copy configuration data to object properties.
      * @param object $config Object from decoding a configuration file (typically from JSON).
-     * @param mixed $strict Invalid property handling. Return false or throw named exception.
+     * @param mixed $options Strict error handling or option array; Return false or throw named exception.
      * @return boolean True if all fields passed validation; and if strict, are defined class properties.
      * @throws mixed
      */
-    public function configure($config, $strict = false) {
+    public function configure($config, $options = false) {
+        // Map the old strict argument into the options array.
+        if (!is_array($options)) {
+            $options = ['strict' => $options];
+        }
+        // Default strict if not set
+        if (!isset($options['strict'])) {
+            $options['strict'] = false;
+        }
+        // If newlog is missing or set true, reset the log, then pass false down to callees.
+        if (!isset($options['newlog']) || $options['newlog'] == true) {
+            self::$configureErrors = [];
+        }
+        $options['newlog'] = false;
         $this -> configureInitialize();
         $result = true;
         foreach ($config as $property => $value) {
@@ -28,12 +43,12 @@ trait Configurable {
             if ($allowed && !$blocked && !$ignored) {
                 if (is_object($this -> $property) && method_exists($this -> $property, 'configure')) {
                     // The property is instantiated and Configurable, pass the value along.
-                    if (!$this -> $property -> configure($value, $strict)) {
+                    if (!$this -> $property -> configure($value, $options)) {
                         $result = false;
                     }
                 } elseif (($specs = $this -> configureClassMap($property, $value))) {
                     // Instantiate and configure the property
-                    if (!$this -> configureInstance($specs, $property, $value, $strict)) {
+                    if (!$this -> configureInstance($specs, $property, $value, $options)) {
                         $result = false;
                     }
                 } elseif ($this -> configureValidate($property, $value)) {
@@ -41,9 +56,11 @@ trait Configurable {
                 } else {
                     $result = false;
                 }
-            } elseif ($strict && !$ignored) {
-                if (is_string($strict)) {
-                    throw new $strict('Undefined property ' . $property . ' in ' . __CLASS__);
+            } elseif ($options['strict'] && !$ignored) {
+                $message = 'Undefined property "' . $property . '" in class ' . __CLASS__;
+                $this -> configureLogError($message);
+                if (is_string($options['strict'])) {
+                    throw new $options['strict']($message);
                 }
                 $result = false;
             }
@@ -85,6 +102,16 @@ trait Configurable {
     }
 
     /**
+     * Get and flush the error log
+     * @return array
+     */
+    public function configureGetErrors() {
+        $log = self::$configureErrors;
+        self::$configureErrors = [];
+        return $log;
+    }
+
+    /**
      * Initialize this object at the start of configuration.
      */
     protected function configureInitialize() {
@@ -95,9 +122,10 @@ trait Configurable {
      * @param object|string $specs Information on the class/array to be created.
      * @param string $property Name of the property to be created.
      * @param mixed $value Value of the property.
+     * @param $options Strict, logging options.
      * @return boolean True when the value is valid for the property.
      */
-    protected function configureInstance($specs, $property, $value, $strict) {
+    protected function configureInstance($specs, $property, $value, $options) {
         $result = true;
         if (
             is_array($value)
@@ -121,7 +149,7 @@ trait Configurable {
                     $ourClass = $specs -> className;
                 }
                 $obj = new $ourClass;
-                if (!$obj -> configure($element, $strict)) {
+                if (!$obj -> configure($element, $options)) {
                     $result = false;
                 }
                 if (!isset($specs -> key) || $specs -> key == '') {
@@ -143,12 +171,20 @@ trait Configurable {
                 $ourClass = $specs -> className;
             }
             $obj = new $ourClass;
-            if (!$obj -> configure($value, $strict)) {
+            if (!$obj -> configure($value, $options)) {
                 $result = false;
             }
             $this -> $property = $obj;
         }
         return $result;
+    }
+
+    /**
+     * Log an error
+     * @return null
+     */
+    protected function configureLogError($message) {
+        self::$configureErrors[] = $message;
     }
 
     /**

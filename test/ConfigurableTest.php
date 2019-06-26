@@ -91,7 +91,7 @@ class ConfigurableMain {
                 $result = true;
         }
         if (!$result) {
-            $this -> validationFails[] = $property;
+            $this -> configureLogError($property . ' has invalid value ' . $value . ' in ' . __CLASS__);
         }
         return $result;
     }
@@ -210,6 +210,7 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
             $obj -> prop1 = 'uninitialized';
             $this -> assertTrue($obj -> configure($config));
             $this -> assertEquals('blue', $obj -> prop1);
+            $this -> assertEquals([], $obj -> configureGetErrors());
         }
 	}
 
@@ -220,6 +221,10 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
             $obj -> prop1 = 'uninitialized';
             $this -> assertFalse($obj -> configure($config));
             $this -> assertEquals('uninitialized', $obj -> prop1);
+            $this -> assertEquals(
+                ['prop1 has invalid value purple in ConfigurableMain'],
+                $obj -> configureGetErrors()
+            );
         }
 	}
 
@@ -233,6 +238,7 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
             $obj -> prop2 = 'uninitialized';
             $this -> assertTrue($obj -> configure($config));
             $this -> assertEquals([], $obj -> prop2);
+            $this -> assertEquals([], $obj -> configureGetErrors());
         }
 	}
 
@@ -243,6 +249,7 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
             $obj -> prop1 = 'uninitialized';
             $this -> assertTrue($obj -> configure($config));
             $this -> assertEquals('uninitialized', $obj -> prop1);
+            $this -> assertEquals([], $obj -> configureGetErrors());
         }
 	}
 
@@ -256,6 +263,10 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
             $obj -> prop1 = 'uninitialized';
             $this -> assertFalse($obj -> configure($config, true));
             $this -> assertEquals('uninitialized', $obj -> prop1);
+            $this -> assertEquals(
+                ['Undefined property "undeclared" in class ConfigurableMain'],
+                $obj -> configureGetErrors()
+            );
         }
 	}
 
@@ -270,6 +281,7 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
             $obj -> ignored = 'uninitialized';
             $this -> assertTrue($obj -> configure($config));
             $this -> assertEquals('uninitialized', $obj -> ignored);
+            $this -> assertEquals([], $obj -> configureGetErrors());
         }
 	}
 
@@ -284,6 +296,7 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
             $obj -> ignored = 'uninitialized';
             $this -> assertTrue($obj -> configure($config, true));
             $this -> assertEquals('uninitialized', $obj -> ignored);
+            $this -> assertEquals([], $obj -> configureGetErrors());
         }
 	}
 
@@ -295,10 +308,11 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
             $success = null;
             try {
                 $obj -> configure($config, 'BadConfigException');
+                $this -> assertEquals([], $obj -> configureGetErrors());
                 $success = true;
             } catch (BadConfigException $ex) {
                 $success = false;
-                $this -> assertEquals('Undefined property undeclared in ConfigurableMain', $ex -> getMessage());
+                $this -> assertEquals('Undefined property "undeclared" in class ConfigurableMain', $ex -> getMessage());
             }
             $this -> assertTrue($success === false);
         }
@@ -310,6 +324,7 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
         $obj -> mappedClass = 'uninitialized';
         $this -> assertTrue($obj -> configure($config));
         $this -> assertEquals('purple', $obj -> mappedClass);
+        $this -> assertEquals([], $obj -> configureGetErrors());
 	}
 
     /**
@@ -321,6 +336,7 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
         $obj -> notConfigurable = 'uninitialized';
         $this -> assertTrue($obj -> configure($config));
         $this -> assertEquals('uninitialized', $obj -> notConfigurable);
+        $this -> assertEquals([], $obj -> configureGetErrors());
 	}
 
     /**
@@ -332,6 +348,10 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
         $obj -> notConfigurable = 'uninitialized';
         $this -> assertFalse($obj -> configure($config, true));
         $this -> assertEquals('uninitialized', $obj -> notConfigurable);
+        $this -> assertEquals(
+            ['Undefined property "notConfigurable" in class ConfigurableSub'],
+            $obj -> configureGetErrors()
+        );
 	}
 
     /**
@@ -343,6 +363,10 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
         $obj -> doNotConfigure = 'uninitialized';
         $this -> assertFalse($obj -> configure($config, true));
         $this -> assertEquals('uninitialized', $obj -> doNotConfigure);
+        $this -> assertEquals(
+            ['Undefined property "doNotConfigure" in class ConfigurableMain'],
+            $obj -> configureGetErrors()
+        );
 	}
 
     /**
@@ -354,6 +378,10 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
         $obj -> conflicted = 'uninitialized';
         $this -> assertFalse($obj -> configure($config, true));
         $this -> assertEquals('uninitialized', $obj -> conflicted);
+        $this -> assertEquals(
+            ['Undefined property "conflicted" in class ConfigurableSub'],
+            $obj -> configureGetErrors()
+        );
 	}
 
     /**
@@ -368,6 +396,7 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
             $this -> assertTrue($obj -> configure($config));
             $this -> assertInstanceOf('ConfigurableSub', $obj -> subClass);
             $this -> assertEquals('subprop', $obj -> subClass -> subProp1);
+            $this -> assertEquals([], $obj -> configureGetErrors());
         }
 	}
 
@@ -382,6 +411,7 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
             $this -> assertTrue($obj -> configure($config));
             $this -> assertInstanceOf('ConfigurableSub', $obj -> subClass);
             $this -> assertEquals('subprop', $obj -> subClass -> subProp1);
+            $this -> assertEquals([], $obj -> configureGetErrors());
         }
 	}
 
@@ -391,6 +421,7 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
         $obj -> prop1 = 'uninitialized';
         $this -> assertFalse($obj -> configure($config, true));
         $this -> assertInstanceOf('ConfigurableSub', $obj -> subClass);
+        $this -> assertEquals([], $obj -> configureGetErrors());
 	}
 
     /**
@@ -404,6 +435,7 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
             $this -> assertTrue($obj -> configure($config));
             $this -> assertInstanceOf('ConfigurableSub', $obj -> subClass2);
             $this -> assertEquals('subprop', $obj -> subClass2 -> subProp1);
+            $this -> assertEquals([], $obj -> configureGetErrors());
         }
 	}
 
@@ -418,6 +450,7 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
             $this -> assertInstanceOf('ConfigurableSub', $obj -> subClass[0]);
             $this -> assertEquals('e0', $obj -> subClass[0] -> subProp1);
             $this -> assertEquals('e1', $obj -> subClass[1] -> subProp1);
+            $this -> assertEquals([], $obj -> configureGetErrors());
         }
 	}
 
@@ -436,6 +469,7 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
             $this -> assertInstanceOf('ConfigurableSub', $obj -> subAssoc['item0']);
             $this -> assertEquals('e0', $obj -> subAssoc['item0'] -> subProp1);
             $this -> assertEquals('e1', $obj -> subAssoc['item1'] -> subProp1);
+            $this -> assertEquals([], $obj -> configureGetErrors());
         }
 	}
 
@@ -453,6 +487,7 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
             $this -> assertTrue(isset($obj -> subAssoc['item0']));
             $this -> assertInstanceOf('ConfigurableSub', $obj -> subAssoc['item0']);
             $this -> assertEquals('e0', $obj -> subAssoc['item0'] -> subProp1);
+            $this -> assertEquals([], $obj -> configureGetErrors());
         }
 	}
 
@@ -472,6 +507,7 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
             $this -> assertInstanceOf('ConfigurableSub', $obj -> subAssocP['item0']);
             $this -> assertEquals('e0', $obj -> subAssocP['item0'] -> subProp1);
             $this -> assertEquals('e1', $obj -> subAssocP['item1'] -> subProp1);
+            $this -> assertEquals([], $obj -> configureGetErrors());
         }
 	}
 
@@ -485,6 +521,7 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
             $this -> assertTrue($obj -> configure($config));
             $this -> assertIsArray($obj -> subClass);
             $this -> assertEquals(0, count($obj -> subClass));
+            $this -> assertEquals([], $obj -> configureGetErrors());
         }
 	}
 
@@ -497,6 +534,7 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
         $this -> assertEquals(2, count($obj -> subClass));
         $this -> assertInstanceOf('ConfigurableSub', $obj -> subClass[0]);
         $this -> assertEquals('e0', $obj -> subClass[0] -> subProp1);
+        $this -> assertEquals([], $obj -> configureGetErrors());
 	}
 
 	public function testSubclassCallableNew() {
@@ -508,6 +546,7 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
         $this -> assertInstanceOf('ConfigurableSub', $obj -> subCallable[0]);
         $this -> assertEquals('e0', $obj -> subCallable[0] -> subProp1);
         $this -> assertEquals('e1', $obj -> subCallable[1] -> subProp1);
+        $this -> assertEquals([], $obj -> configureGetErrors());
 	}
 
     /**
@@ -526,6 +565,7 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
             $this -> assertEquals('e0', $obj -> subDynamic['item0'] -> propA);
             $this -> assertInstanceOf('ConfigurableTypeB', $obj -> subDynamic['item1']);
             $this -> assertEquals('e1', $obj -> subDynamic['item1'] -> propB);
+            $this -> assertEquals([], $obj -> configureGetErrors());
         }
 	}
 

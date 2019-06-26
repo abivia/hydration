@@ -70,7 +70,7 @@ For a JSON input like this
 ```
 
 with a class that does not have the `primary` property, the result depends on the
-`strict` argument:
+`strict` option:
 ```php
     class SomeClass {
         use \Abivia\Configurable;
@@ -85,11 +85,11 @@ with a class that does not have the `primary` property, the result depends on th
     // Returns true
     $obj -> configure($jsonDecoded);
     // Lazy validation: Returns true
-    $obj -> configure($jsonDecoded, false);
+    $obj -> configure($jsonDecoded, ['strict' => false]);
     // Strict validation: Returns false
-    $obj -> configure($jsonDecoded, true);
+    $obj -> configure($jsonDecoded, ['strict' => true]);
     // Strict validation: throws MyException
-    $obj -> configure($jsonDecoded, 'MyException');
+    $obj -> configure($jsonDecoded, ['strict' => 'MyException']);
  ```
 
 Initialization and Completion
@@ -159,6 +159,11 @@ as an argument.
 The `keyIsMethod` property is only used when `key` is present and not a callable. When
 set, `key` is treated as a method of the constructed object. Typically this is a getter.
 
+Error Logging
+-------------
+Any problems encountered during configuration are logged. An array of errors can be
+retrieved by calling the `configureGetErrors()` method. The error log is cleared by an
+application call to `configure()` unless the newLog option is set to false.
 
 Examples
 ========
