@@ -1,0 +1,22 @@
+# Select image from https://hub.docker.com/_/php/
+image: php:7.2
+
+# Select what we should cache
+cache:
+  paths:
+  - vendor/
+
+before_script:
+# Install git, the php image doesn't have installed
+- apt-get update -yqq
+- apt-get install git -yqq
+
+# Install composer
+- curl -sS https://getcomposer.org/installer | php
+
+# Install all project dependencies
+- php composer.phar install
+
+test:php7:
+  script:
+  - vendor/bin/phpunit --configuration test/configuration.xml --coverage-text
