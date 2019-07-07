@@ -6,7 +6,7 @@ namespace Abivia\Configurable;
  */
 trait Configurable {
 
-    static protected $configureErrors;
+    protected $configureErrors;
 
     /**
      * Copy configuration data to object properties.
@@ -26,7 +26,7 @@ trait Configurable {
         }
         // If newlog is missing or set true, reset the log, then pass false down to callees.
         if (!isset($options['newlog']) || $options['newlog'] == true) {
-            self::$configureErrors = [];
+            $this -> configureErrors = [];
         }
         $options['newlog'] = false;
         $this -> configureInitialize();
@@ -44,6 +44,7 @@ trait Configurable {
                 if (is_object($this -> $property) && method_exists($this -> $property, 'configure')) {
                     // The property is instantiated and Configurable, pass the value along.
                     if (!$this -> $property -> configure($value, $options)) {
+                        $this -> configureLogError($this -> $property -> configureGetErrors());
                         $result = false;
                     }
                 } elseif (($specs = $this -> configureClassMap($property, $value))) {
@@ -106,8 +107,8 @@ trait Configurable {
      * @return array
      */
     public function configureGetErrors() {
-        $log = self::$configureErrors;
-        self::$configureErrors = [];
+        $log = $this -> configureErrors;
+        $this -> configureErrors = [];
         return $log;
     }
 
@@ -150,6 +151,7 @@ trait Configurable {
                 }
                 $obj = new $ourClass;
                 if (!$obj -> configure($element, $options)) {
+                    $this -> configureLogError($obj -> configureGetErrors());
                     $result = false;
                 }
                 if (!isset($specs -> key) || $specs -> key == '') {
@@ -172,6 +174,7 @@ trait Configurable {
             }
             $obj = new $ourClass;
             if (!$obj -> configure($value, $options)) {
+                $this -> configureLogError($obj -> configureGetErrors());
                 $result = false;
             }
             $this -> $property = $obj;
@@ -181,10 +184,15 @@ trait Configurable {
 
     /**
      * Log an error
+     * @param string|array message An error message to log or an array of messages to log
      * @return null
      */
     protected function configureLogError($message) {
-        self::$configureErrors[] = $message;
+        If (is_array($message)) {
+            $this -> configureErrors = array_merge($this -> configureErrors, $message);
+        } else {
+            $this -> configureErrors[] = $message;
+        }
     }
 
     /**

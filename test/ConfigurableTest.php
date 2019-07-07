@@ -421,7 +421,10 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
         $obj -> prop1 = 'uninitialized';
         $this -> assertFalse($obj -> configure($config, true));
         $this -> assertInstanceOf('ConfigurableSub', $obj -> subClass);
-        $this -> assertEquals([], $obj -> configureGetErrors());
+        $this -> assertEquals(
+            ['Undefined property "badprop" in class ConfigurableSub'],
+            $obj -> configureGetErrors()
+        );
 	}
 
     /**
@@ -534,7 +537,10 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
         $this -> assertEquals(2, count($obj -> subClass));
         $this -> assertInstanceOf('ConfigurableSub', $obj -> subClass[0]);
         $this -> assertEquals('e0', $obj -> subClass[0] -> subProp1);
-        $this -> assertEquals([], $obj -> configureGetErrors());
+        $this -> assertEquals(
+            ['Undefined property "badprop" in class ConfigurableSub'],
+            $obj -> configureGetErrors()
+        );
 	}
 
 	public function testSubclassCallableNew() {
