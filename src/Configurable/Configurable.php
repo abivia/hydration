@@ -6,7 +6,7 @@ namespace Abivia\Configurable;
  */
 trait Configurable {
 
-    protected $configureErrors;
+    protected $configureErrors = [];
 
     /**
      * Copy configuration data to object properties.
