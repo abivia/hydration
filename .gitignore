@@ -2,3 +2,4 @@
 /vendor/
 /composer.lock
 /test/.phpunit.result.cache
+/gitlab-avatar.jpg
