@@ -152,6 +152,7 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
         'testSimpleUndeclaredStrict' => '{"undeclared":"purple"}',
         'testSimpleUndeclaredStrictException' => '{"undeclared":"purple"}',
         'testSimpleValid' => '{"prop1":"blue"}',
+        'testSimpleValidStrictDefault' => '{"prop1":"blue","bonus":true}',
         'testSubclassArrayNew' => '{"subClass":[{"subProp1":"e0"},{"subProp1":"e1"}]}',
         'testSubclassArrayNewAssoc' => '{"subAssoc":[{"key":"item0","subProp1":"e0"},{"key":"item1","subProp1":"e1"}]}',
         'testSubclassArrayNewAssocCast' => '{"subAssoc":{"key":"item0","subProp1":"e0"}}',
@@ -214,6 +215,20 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
         }
 	}
 
+    /**
+     * Pass an empty options array to make sure strict defaults
+     */
+	public function testSimpleValidStrictDefault() {
+        foreach (['json', 'yaml'] as $format) {
+            $config = self::getConfig(__FUNCTION__, $format);
+            $obj = new ConfigurableMain();
+            $obj -> prop1 = 'uninitialized';
+            $this -> assertTrue($obj -> configure($config, []));
+            $this -> assertEquals('blue', $obj -> prop1);
+            $this -> assertEquals([], $obj -> configureGetErrors());
+        }
+	}
+
 	public function testSimpleInvalid() {
         foreach (['json', 'yaml'] as $format) {
             $config = self::getConfig(__FUNCTION__, $format);
@@ -222,7 +237,10 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
             $this -> assertFalse($obj -> configure($config));
             $this -> assertEquals('uninitialized', $obj -> prop1);
             $this -> assertEquals(
-                ['prop1 has invalid value purple in ConfigurableMain'],
+                [
+                    'prop1 has invalid value purple in ConfigurableMain',
+                    'Validation failed on property "prop1"',
+                ],
                 $obj -> configureGetErrors()
             );
         }
@@ -422,7 +440,10 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
         $this -> assertFalse($obj -> configure($config, true));
         $this -> assertInstanceOf('ConfigurableSub', $obj -> subClass);
         $this -> assertEquals(
-            ['Undefined property "badprop" in class ConfigurableSub'],
+            [
+                'Unable to configure property "subClass":',
+                'Undefined property "badprop" in class ConfigurableSub',
+            ],
             $obj -> configureGetErrors()
         );
 	}
@@ -538,7 +559,10 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
         $this -> assertInstanceOf('ConfigurableSub', $obj -> subClass[0]);
         $this -> assertEquals('e0', $obj -> subClass[0] -> subProp1);
         $this -> assertEquals(
-            ['Undefined property "badprop" in class ConfigurableSub'],
+            [
+                'Unable to configure property "subClass":',
+                'Undefined property "badprop" in class ConfigurableSub',
+            ],
             $obj -> configureGetErrors()
         );
 	}
