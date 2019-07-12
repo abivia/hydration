@@ -25,13 +25,13 @@ trait Configurable {
         if (!isset($options['strict'])) {
             $options['strict'] = false;
         }
-        $this -> configureOptions = $options;
         // If newlog is missing or set true, reset the log, then pass false down to callees.
         if (!isset($options['newlog']) || $options['newlog'] == true) {
             $this -> configureErrors = [];
         }
+        $this -> configureOptions = $options;
         $this -> configureInitialize();
-        $subOptions = array_merge($options, ['newlog' => false, 'parent' => &$this]);
+        $subOptions = array_merge($this -> configureOptions, ['newlog' => false, 'parent' => &$this]);
         $result = true;
         foreach ($config as $origProperty => $value) {
             $property = $this -> configurePropertyMap($origProperty);

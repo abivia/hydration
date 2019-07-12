@@ -67,6 +67,10 @@ class ConfigurableMain {
         return $result;
     }
 
+    protected function configureInitialize() {
+        $this -> configureOptions['_custom'] = 'appOptions';
+    }
+
     protected function configurePropertyBlock($property) {
         return in_array($property, ['doNotConfigure']);
     }
@@ -116,6 +120,10 @@ class ConfigurableSub {
 
     protected function configurePropertyAllow($property) {
         return in_array($property, ['conflicted', 'key', 'keyP', 'subProp1']);
+    }
+
+    public function checkConfigurableOption($name) {
+        return $this -> configureOptions[$name];
     }
 
     public function getKeyP() {
@@ -415,6 +423,8 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
             $this -> assertInstanceOf('ConfigurableSub', $obj -> subClass);
             $this -> assertEquals('subprop', $obj -> subClass -> subProp1);
             $this -> assertEquals([], $obj -> configureGetErrors());
+            // See if our custom option got passed in
+            $this -> assertEquals('appOptions', $obj -> subClass -> checkConfigurableOption('_custom'));
         }
 	}
 
