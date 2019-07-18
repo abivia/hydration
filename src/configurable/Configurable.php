@@ -160,18 +160,22 @@ trait Configurable {
                 } else {
                     $ourClass = $specs -> className;
                 }
-                $obj = new $ourClass;
-                if (!$obj -> configure($element, $options)) {
-                    $result = $obj -> configureGetErrors();
-                }
-                if (!isset($specs -> key) || $specs -> key == '') {
-                    $this -> $property[] = $obj;
-                } elseif (is_array($specs -> key) && is_callable($specs -> key)) {
-                    call_user_func($specs -> key, $obj);
-                } elseif (isset($specs -> keyIsMethod) && $specs -> keyIsMethod) {
-                    $this -> $property[$obj -> {$specs -> key}()] = $obj;
+                if (($goodClass = class_exists($ourClass))) {
+                    $obj = new $ourClass;
+                    if (!$obj -> configure($element, $options)) {
+                        $result = $obj -> configureGetErrors();
+                    }
+                    if (!isset($specs -> key) || $specs -> key == '') {
+                        $this -> $property[] = $obj;
+                    } elseif (is_array($specs -> key) && is_callable($specs -> key)) {
+                        call_user_func($specs -> key, $obj);
+                    } elseif (isset($specs -> keyIsMethod) && $specs -> keyIsMethod) {
+                        $this -> $property[$obj -> {$specs -> key}()] = $obj;
+                    } else {
+                        $this -> $property[$obj -> {$specs -> key}] = $obj;
+                    }
                 } else {
-                    $this -> $property[$obj -> {$specs -> key}] = $obj;
+
                 }
             }
         } else {
@@ -182,11 +186,17 @@ trait Configurable {
             } else {
                 $ourClass = $specs -> className;
             }
-            $obj = new $ourClass;
-            if (!$obj -> configure($value, $options)) {
-                $result = $obj -> configureGetErrors();
+            if (($goodClass = class_exists($ourClass))) {
+                $obj = new $ourClass;
+                if (!$obj -> configure($value, $options)) {
+                    $result = $obj -> configureGetErrors();
+                }
+                $this -> $property = $obj;
             }
-            $this -> $property = $obj;
+        }
+        if (!$goodClass) {
+            $result[] = 'Undefined class "' . $ourClass.'" configuring "'
+                . $property . '" in class ' . __CLASS__;
         }
         return $result;
     }
