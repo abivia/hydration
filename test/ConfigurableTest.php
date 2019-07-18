@@ -5,6 +5,8 @@ class BadConfigException extends Exception {}
 class ConfigurableMain {
     use \Abivia\Configurable\Configurable;
 
+    public $badClass1;
+    public $badClass2;
     public $doNotConfigure;
     public $ignored;
     public $mappedClass;
@@ -31,12 +33,17 @@ class ConfigurableMain {
      */
     protected function configureClassMap($property, $value) {
         static $classMap = [
+            'badClass1' => ['className' => 'ThisClassDoesNotExist'],
+            // badClass2 is set up below.
             'subAssoc' => ['className' => 'ConfigurableSub', 'key' => 'key'],
             'subAssocP' => ['className' => 'ConfigurableSub', 'key' => 'getKeyP', 'keyIsMethod' => true],
             'subClass' => ['className' => 'ConfigurableSub'],
         ];
         $result = false;
         switch ($property) {
+            case 'badClass2':
+                $result = ['ThisClassIsNotAString'];
+                break;
             case 'subCallable':
                 $result = new stdClass;
                 $result -> key = [$this, 'addToCallable'];
@@ -572,6 +579,38 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
             [
                 'Unable to configure property "subClass":',
                 'Undefined property "badprop" in class ConfigurableSub',
+            ],
+            $obj -> configureGetErrors()
+        );
+	}
+
+    /**
+     * Case where a requested class does not exist
+     */
+	public function testSubclassBad1() {
+        $config = json_decode('{"badClass1":{"subProp1":"e0"}}');
+        $obj = new ConfigurableMain();
+        $this -> assertFalse($obj -> configure($config), true);
+        $this -> assertEquals(
+            [
+                'Unable to configure property "badClass1":',
+                'Undefined class "ThisClassDoesNotExist" configuring "badClass1" in class ConfigurableMain'
+            ],
+            $obj -> configureGetErrors()
+        );
+	}
+
+    /**
+     * Case where a requested class is not a string
+     */
+	public function testSubclassBad2() {
+        $config = json_decode('{"badClass2":{"subProp1":"e0"}}');
+        $obj = new ConfigurableMain();
+        $this -> assertFalse($obj -> configure($config), true);
+        $this -> assertEquals(
+            [
+                'Unable to configure property "badClass2":',
+                'Invalid class specification configuring "badClass2" in class ConfigurableMain'
             ],
             $obj -> configureGetErrors()
         );

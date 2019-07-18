@@ -113,6 +113,20 @@ trait Configurable {
         return true;
     }
 
+    public function configureGetClass($specs, $value) {
+        $ourClass = false;
+        if (is_string($specs)) {
+            $ourClass = $specs;
+        } elseif (is_object($specs)) {
+            if (is_callable($specs -> className)) {
+                $ourClass = call_user_func($specs -> className, $value);
+            } else {
+                $ourClass = $specs -> className;
+            }
+        }
+        return $ourClass;
+    }
+
     /**
      * Get and flush the error log
      * @return array
@@ -150,17 +164,12 @@ trait Configurable {
             // If it's keyed, force an array
             $value = [$value];
         }
+        $goodClass = true;
         if (is_array($value)) {
             $this -> $property = [];
             foreach ($value as $key => $element) {
-                if (is_string($specs)) {
-                    $ourClass = $specs;
-                } elseif (is_callable($specs -> className)) {
-                    $ourClass = call_user_func($specs -> className, $element);
-                } else {
-                    $ourClass = $specs -> className;
-                }
-                if (($goodClass = class_exists($ourClass))) {
+                $ourClass = $this -> configureGetClass($specs, $element);
+                if (($goodClass = is_string($ourClass) && class_exists($ourClass))) {
                     $obj = new $ourClass;
                     if (!$obj -> configure($element, $options)) {
                         $result = $obj -> configureGetErrors();
@@ -179,14 +188,8 @@ trait Configurable {
                 }
             }
         } else {
-            if (is_string($specs)) {
-                $ourClass = $specs;
-            } elseif (is_callable($specs -> className)) {
-                $ourClass = call_user_func($specs -> className, $value);
-            } else {
-                $ourClass = $specs -> className;
-            }
-            if (($goodClass = class_exists($ourClass))) {
+            $ourClass = $this -> configureGetClass($specs, $value);
+            if (($goodClass = is_string($ourClass) && class_exists($ourClass))) {
                 $obj = new $ourClass;
                 if (!$obj -> configure($value, $options)) {
                     $result = $obj -> configureGetErrors();
@@ -195,8 +198,11 @@ trait Configurable {
             }
         }
         if (!$goodClass) {
-            $result[] = 'Undefined class "' . $ourClass.'" configuring "'
-                . $property . '" in class ' . __CLASS__;
+            $result[] = (
+                $ourClass === false
+                ? 'Invalid class specification'
+                : 'Undefined class "' . $ourClass . '"')
+                . ' configuring "' . $property . '" in class ' . __CLASS__;
         }
         return $result;
     }
