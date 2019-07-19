@@ -7,6 +7,8 @@ class ConfigurableMain {
 
     public $badClass1;
     public $badClass2;
+    public $badClass3;
+    public $badClass4;
     public $doNotConfigure;
     public $ignored;
     public $mappedClass;
@@ -35,6 +37,8 @@ class ConfigurableMain {
         static $classMap = [
             'badClass1' => ['className' => 'ThisClassDoesNotExist'],
             // badClass2 is set up below.
+            'badClass3' => ['className' => ['not', 'callable']],
+            // badClass4 is set up below.
             'subAssoc' => ['className' => 'ConfigurableSub', 'key' => 'key'],
             'subAssocP' => ['className' => 'ConfigurableSub', 'key' => 'getKeyP', 'keyIsMethod' => true],
             'subClass' => ['className' => 'ConfigurableSub'],
@@ -43,6 +47,11 @@ class ConfigurableMain {
         switch ($property) {
             case 'badClass2':
                 $result = ['ThisClassIsNotAString'];
+                break;
+            case 'badClass4':
+                // Test object in place of className
+                $result = new stdClass;
+                $result -> className = (object) ['totally' => 'invalid'];
                 break;
             case 'subCallable':
                 $result = new stdClass;
@@ -611,6 +620,38 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
             [
                 'Unable to configure property "badClass2":',
                 'Invalid class specification configuring "badClass2" in class ConfigurableMain'
+            ],
+            $obj -> configureGetErrors()
+        );
+	}
+
+    /**
+     * Case where we try to use a bad callable for a subclass
+     */
+	public function testSubclassBad3() {
+        $config = json_decode('{"badClass3":{"subProp1":"e0"}}');
+        $obj = new ConfigurableMain();
+        $this -> assertFalse($obj -> configure($config), true);
+        $this -> assertEquals(
+            [
+                'Unable to configure property "badClass3":',
+                'Bad callable [not, callable] configuring "badClass3" in class ConfigurableMain'
+            ],
+            $obj -> configureGetErrors()
+        );
+	}
+
+    /**
+     * Case where we try to use an object as a callable
+     */
+	public function testSubclassBad4() {
+        $config = json_decode('{"badClass4":{"subProp1":"e0"}}');
+        $obj = new ConfigurableMain();
+        $this -> assertFalse($obj -> configure($config), true);
+        $this -> assertEquals(
+            [
+                'Unable to configure property "badClass4":',
+                'Unexpected "stdClass" Object configuring "badClass4" in class ConfigurableMain'
             ],
             $obj -> configureGetErrors()
         );

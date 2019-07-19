@@ -184,7 +184,7 @@ trait Configurable {
                         $this -> $property[$obj -> {$specs -> key}] = $obj;
                     }
                 } else {
-
+                    break;
                 }
             }
         } else {
@@ -198,11 +198,16 @@ trait Configurable {
             }
         }
         if (!$goodClass) {
-            $result[] = (
-                $ourClass === false
-                ? 'Invalid class specification'
-                : 'Undefined class "' . $ourClass . '"')
-                . ' configuring "' . $property . '" in class ' . __CLASS__;
+            if ($ourClass === false) {
+                $msg = 'Invalid class specification';
+            } elseif (is_array($ourClass)) {
+                $msg = 'Bad callable [' . implode(', ', $ourClass) . ']';
+            } elseif (is_object($ourClass)) {
+                $msg = 'Unexpected "' . get_class($ourClass) . '" Object';
+            } else {
+                $msg = 'Undefined class "' . $ourClass . '"';
+            }
+            $result[] = $msg . ' configuring "' . $property . '" in class ' . __CLASS__;
         }
         return $result;
     }
