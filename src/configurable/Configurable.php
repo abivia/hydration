@@ -13,7 +13,7 @@ trait Configurable {
      * Copy configuration data to object properties.
      * @param object $config Object from decoding a configuration file (typically from JSON).
      * @param mixed $options Strict error handling method or option array.
-     * @return boolean True if all fields passed validation; and if strict, are defined class properties.
+     * @return bool True if all fields passed validation; and if strict, are defined class properties.
      * @throws mixed
      */
     public function configure($config, $options = false) {
@@ -106,7 +106,7 @@ trait Configurable {
     /**
      * Post-configuration operations
      *
-     * @return boolean True when post-configuration is successful.
+     * @return bool True when post-configuration is successful.
      * @codeCoverageIgnore
      */
     protected function configureComplete() {
@@ -228,7 +228,7 @@ trait Configurable {
     /**
      * Check if the property can be loaded from configuration.
      * @param string $property
-     * @return boolean true if the property is allowed.
+     * @return bool true if the property is allowed.
      */
     protected function configurePropertyAllow($property) {
         return true;
@@ -237,7 +237,7 @@ trait Configurable {
     /**
      * Check if the property is blocked from loading.
      * @param string $property The property name.
-     * @return boolean true if the property is blocked.
+     * @return bool true if the property is blocked.
      */
     protected function configurePropertyBlock($property) {
         return false;
@@ -246,7 +246,7 @@ trait Configurable {
     /**
      * Check if the property should be ignored.
      * @param string $property The property name.
-     * @return boolean true if the property is ignored.
+     * @return bool true if the property is ignored.
      */
     protected function configurePropertyIgnore($property) {
         return false;
@@ -265,7 +265,7 @@ trait Configurable {
      * Create a new object or array of objects and assign values. This is a stub.
      * @param string $property Name of the property to be validated.
      * @param mixed $value Value of the property.
-     * @return boolean True when the value is valid for the property.
+     * @return bool True when the value is valid for the property.
      * @codeCoverageIgnore
      */
     protected function configureValidate($property, &$value) {
