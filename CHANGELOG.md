@@ -1,6 +1,11 @@
 Change log for Abivia\Configurable
 ====
 
+0.5.1
+----
+
+- Remove options argument from `configureInitialize()`: redundant and misleading
+
 0.5.0
 ----
 
