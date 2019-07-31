@@ -117,6 +117,8 @@ In many cases it is required that the object be in a known state before configur
 and that the configured object has acceptable values. `Configurable` supplies
 `configureInitialize()` and `configureComplete()` for this purpose. `configureInitialize()`
 can be used to return a previously instantiated object to a known state.
+`configureInitialize()` gets passed references to the configuration data and the options
+array, and is thus able to pre-process the inputs if required.
 
 
 

@@ -83,7 +83,25 @@ class ConfigurableMain {
         return $result;
     }
 
-    protected function configureInitialize() {
+    protected function configureInitialize(&$config, &$options) {
+        if (is_object($config) && isset($config -> subClass) && is_array($config -> subClass)) {
+            foreach ($config -> subClass as $key => $value) {
+                if (!is_string($value)) {
+                    continue;
+                }
+                $obj = new Stdclass;
+                $obj -> subProp1 = $value;
+                $config -> subClass[$key] = $obj;
+            }
+        } elseif (is_array($config) && isset($config['subClass']) && is_array($config['subClass'])) {
+            foreach ($config['subClass'] as $key => $value) {
+                if ($key === 'subProp1' || isset($value['subProp1'])) {
+                    continue;
+                }
+                $config['subClass'][$key] = ['subProp1' => $value];
+            }
+        }
+
         $this -> configureOptions['_custom'] = 'appOptions';
     }
 
@@ -186,6 +204,7 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
             . '{"key":"item0","type":"a","propA":"e0"},'
             . '{"key":"item1","type":"b","propB":"e1"}]'
             . '}',
+        'testSubclassArrayNewTransform' => '{"subClass":["e0","e1",{"subProp1":"e2"}]}',
         'testSubclassScalar' => '{"subClass":{"subProp1":"subprop"}}',
         'testSubclassScalarNew' => '{"subClass":{"subProp1":"subprop"}}',
         'testSubclassStringNew' => '{"subClass2":{"subProp1":"subprop"}}',
@@ -494,13 +513,13 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
             $obj -> prop1 = 'uninitialized';
-            $this -> assertTrue($obj -> configure($config));
-            $this -> assertIsArray($obj -> subClass);
-            $this -> assertEquals(2, count($obj -> subClass));
-            $this -> assertInstanceOf('ConfigurableSub', $obj -> subClass[0]);
-            $this -> assertEquals('e0', $obj -> subClass[0] -> subProp1);
-            $this -> assertEquals('e1', $obj -> subClass[1] -> subProp1);
-            $this -> assertEquals([], $obj -> configureGetErrors());
+            $this -> assertTrue($obj -> configure($config), $format);
+            $this -> assertIsArray($obj -> subClass, $format);
+            $this -> assertEquals(2, count($obj -> subClass), $format);
+            $this -> assertInstanceOf('ConfigurableSub', $obj -> subClass[0], $format);
+            $this -> assertEquals('e0', $obj -> subClass[0] -> subProp1, $format);
+            $this -> assertEquals('e1', $obj -> subClass[1] -> subProp1, $format);
+            $this -> assertEquals([], $obj -> configureGetErrors(), $format);
         }
 	}
 
@@ -591,6 +610,25 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
             ],
             $obj -> configureGetErrors()
         );
+	}
+
+    /**
+     * Test transforming data in initialization
+     */
+	public function testSubclassArrayNewTransform() {
+        foreach (['json', 'yaml'] as $format) {
+            $config = self::getConfig(__FUNCTION__, $format);
+            $obj = new ConfigurableMain();
+            $obj -> prop1 = 'uninitialized';
+            $this -> assertTrue($obj -> configure($config), $format);
+            $this -> assertIsArray($obj -> subClass, $format);
+            $this -> assertEquals(3, count($obj -> subClass), $format);
+            $this -> assertInstanceOf('ConfigurableSub', $obj -> subClass[0], $format);
+            $this -> assertEquals('e0', $obj -> subClass[0] -> subProp1, $format);
+            $this -> assertEquals('e1', $obj -> subClass[1] -> subProp1, $format);
+            $this -> assertEquals('e2', $obj -> subClass[2] -> subProp1, $format);
+            $this -> assertEquals([], $obj -> configureGetErrors(), $format);
+        }
 	}
 
     /**
