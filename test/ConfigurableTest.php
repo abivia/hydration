@@ -83,7 +83,7 @@ class ConfigurableMain {
         return $result;
     }
 
-    protected function configureInitialize(&$config, &$options) {
+    protected function configureInitialize(&$config) {
         if (is_object($config) && isset($config -> subClass) && is_array($config -> subClass)) {
             foreach ($config -> subClass as $key => $value) {
                 if (!is_string($value)) {

@@ -30,7 +30,7 @@ trait Configurable {
             $this -> configureErrors = [];
         }
         $this -> configureOptions = $options;
-        $this -> configureInitialize($config, $options);
+        $this -> configureInitialize($config);
         $subOptions = array_merge($this -> configureOptions, ['newlog' => false, 'parent' => &$this]);
         $result = true;
         foreach ($config as $origProperty => $value) {
@@ -140,10 +140,9 @@ trait Configurable {
     /**
      * Initialize configuration.
      * @param object $config Object from decoding a configuration file (typically from JSON).
-     * @param array $options Normalized options.
      * @return mixed Application dependent; a return value of false will cause an abort.
      */
-    protected function configureInitialize(&$config, &$options) {
+    protected function configureInitialize(&$config) {
         return true;
     }
 

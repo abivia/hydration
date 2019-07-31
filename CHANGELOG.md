@@ -5,7 +5,7 @@ Change log for Abivia\Configurable
 ----
 
 - Fix return types in some docblock comments that was confusing Netbeans
-- configureInitialize() now accepts references to the source data and options array
+- `configureInitialize()` now accepts references to the source data and options array
 
 0.4.0
 ----
