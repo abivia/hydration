@@ -10,6 +10,12 @@ class ConfigurableMain {
     public $badClass3;
     public $badClass4;
     public $doNotConfigure;
+
+    /**
+     * A member of this class is configured during configureComplete
+     * @var stdClass
+     */
+    public $genericForSubConfiguration;
     public $ignored;
     public $mappedClass;
     public $prop1;
@@ -83,6 +89,23 @@ class ConfigurableMain {
         return $result;
     }
 
+    protected function configureComplete() {
+        if ($this -> genericForSubConfiguration !== null) {
+            // Convert the sub property into a ConfigurablesSub
+            if (isset($this -> genericForSubConfiguration -> subClass)) {
+                $obj = new ConfigurableSub();
+                if (!$obj -> configure($this -> genericForSubConfiguration -> subClass, $this -> configureOptions)) {
+                    $this -> configureErrors = array_merge(
+                        $this -> configureErrors, $obj -> configureGetErrors()
+                    );
+                    return false;
+                }
+                $this -> genericForSubConfiguration -> subClass = $obj;
+            }
+        }
+        return true;
+    }
+
     protected function configureInitialize(&$config) {
         if (is_object($config) && isset($config -> subClass) && is_array($config -> subClass)) {
             foreach ($config -> subClass as $key => $value) {
@@ -129,7 +152,8 @@ class ConfigurableMain {
                 $result = true;
         }
         if (!$result) {
-            $this -> configureLogError($property . ' has invalid value ' . $value . ' in ' . __CLASS__);
+            $this -> configureLogError($property . ' has invalid value ' . $value
+                . ' in ' . __CLASS__);
         }
         return $result;
     }
@@ -137,6 +161,7 @@ class ConfigurableMain {
 }
 
 /**
+ * Subclass that can be created during configuration.
  * This class uses the trait's validation, which always returns true.
  */
 class ConfigurableSub {
@@ -166,6 +191,9 @@ class ConfigurableSub {
 
 }
 
+/**
+ * A test class that can be created during configuration.
+ */
 class ConfigurableTypeA {
     use \Abivia\Configurable\Configurable;
 
@@ -174,6 +202,9 @@ class ConfigurableTypeA {
     public $type;
 }
 
+/**
+ * B test class that can be created during configuration.
+ */
 class ConfigurableTypeB {
     use \Abivia\Configurable\Configurable;
 
@@ -185,6 +216,7 @@ class ConfigurableTypeB {
 class ConfigurableTest extends \PHPUnit\Framework\TestCase {
 
     static $configSource = [
+        'testNestedDoesNotCorruptSource' => '{"genericForSubConfiguration":{"subClass":[{"subProp1":"e0"},{"subProp1":"e1"}]}}',
         'testPropertyMapping' => '{"class":"purple"}',
         'testSimpleEmptyArray' => '{"prop2":[]}',
         'testSimpleIgnoreRelaxed' => '{"ignored":"purple"}',
@@ -726,5 +758,16 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
             $this -> assertEquals([], $obj -> configureGetErrors());
         }
 	}
+
+    /**
+     * Ensure that nested calls to configure do not modify the source data.
+     */
+    public function testNestedDoesNotCorruptSource() {
+        $source = json_decode(self::$configSource[__FUNCTION__]);
+        $config =  json_decode(self::$configSource[__FUNCTION__]);
+        $obj = new ConfigurableMain();
+        $this -> assertTrue($obj -> configure($config));
+        $this -> assertEquals($source, $config);
+    }
 
 }

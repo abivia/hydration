@@ -33,6 +33,10 @@ trait Configurable {
         $this -> configureInitialize($config);
         $subOptions = array_merge($this -> configureOptions, ['newlog' => false, 'parent' => &$this]);
         $result = true;
+        // Need a better version of this...
+//        if (!is_array($config) && !is_object($config)) {
+//            throw new \LogicException('Trying to iterate in ' . __CLASS__ . ' on ' . print_r($config, true));
+//        }
         foreach ($config as $origProperty => $value) {
             $property = $this -> configurePropertyMap($origProperty);
             // Check for allowed/blocked/declared properties, block takes precedence.
@@ -60,7 +64,12 @@ trait Configurable {
                         $result = false;
                     }
                 } elseif ($this -> configureValidate($property, $value)) {
-                    $this -> $property = $value;
+                    if (is_object($value)) {
+                        // Clone the stdClass so we can't corrupt the source data
+                        $this -> $property = clone $value;
+                    } else {
+                        $this -> $property = $value;
+                    }
                 } else {
                     $this -> configureLogError(
                         'Validation failed on property "' . $origProperty . '"'
