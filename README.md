@@ -37,7 +37,7 @@ class ConfigurableObject {
     protected $password;
 
 }
-$json = '{"userName": "admin"; "password": "insecure"]';
+$json = '{"userName": "admin"; "password": "insecure"}';
 $obj = new ConfigurableObject();
 $obj -> configure(json_decode($json));
 echo $obj -> userName . ', ' . $obj -> password;
@@ -128,6 +128,37 @@ can be used to return a previously instantiated object to a known state.
 `configureInitialize()` gets passed references to the configuration data and the options
 array, and is thus able to pre-process the inputs if required.
 
+One use case for pre-processing during initialization is to allow shorthand expressions.
+For example, if you have a series of objects with one property:
+```json
+{
+    "list": [
+        {"name": "foo"},
+        {"name": "bar"},
+        {"name": "bat"}
+    ]
+}
+```
+Your application can support a shorthand expression:
+```json
+{
+    "list": ["foo", "bar", "bat"]
+}
+```
+With this code in the initialization:
+```php
+protected function configureInitialize(&$config) {
+    if (isset($config -> list) && is_array($config -> list)) {
+        foreach ($config -> list as &$item) {
+            if (is_string($item)) {
+                $obj = new stdClass;
+                $obj -> name = $item;
+                $item = $obj;
+            }
+        }
+    }
+}
+```
 
 
 Validation
