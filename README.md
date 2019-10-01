@@ -13,6 +13,14 @@ associative arrays of PHP classes that are indexed by any unique scalar property
 Loading can be either fault-tolerant or strict. Strict validation can either fail with a
 `false` result or by throwing the `Exception` class of your choice.
 
+Installation
+----
+
+Old School: Configurable has no dependencies, so you can just include it and use it.
+
+Composer: require abivia/configurable
+
+
 Basic Usage
 ----
 
@@ -83,7 +91,7 @@ For a JSON input like this
 {
     "depth": 15,
     "length": 22,
-    "primary: "Red",
+    "primary": "Red",
     "width": 3
 }
 ```
