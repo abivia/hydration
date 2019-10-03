@@ -39,8 +39,8 @@ class ConfigurableObject {
 }
 $json = '{"userName": "admin"; "password": "insecure"}';
 $obj = new ConfigurableObject();
-$obj -> configure(json_decode($json));
-echo $obj -> userName . ', ' . $obj -> password;
+$obj->configure(json_decode($json));
+echo $obj->userName . ', ' . $obj->password;
 ```
 Output:
 admin, insecure
@@ -110,13 +110,13 @@ with a class that does not have the `primary` property, the result depends on th
 
     $obj = new SomeClass();
     // Returns true
-    $obj -> configure($jsonDecoded);
+    $obj->configure($jsonDecoded);
     // Lazy validation: Returns true
-    $obj -> configure($jsonDecoded, ['strict' => false]);
+    $obj->configure($jsonDecoded, ['strict' => false]);
     // Strict validation: Returns false
-    $obj -> configure($jsonDecoded, ['strict' => true]);
+    $obj->configure($jsonDecoded, ['strict' => true]);
     // Strict validation: throws MyException
-    $obj -> configure($jsonDecoded, ['strict' => 'MyException']);
+    $obj->configure($jsonDecoded, ['strict' => 'MyException']);
  ```
 
 Initialization and Completion
@@ -148,11 +148,11 @@ Your application can support a shorthand expression:
 With this code in the initialization:
 ```php
 protected function configureInitialize(&$config) {
-    if (isset($config -> list) && is_array($config -> list)) {
-        foreach ($config -> list as &$item) {
+    if (isset($config->list) && is_array($config->list)) {
+        foreach ($config->list as &$item) {
             if (is_string($item)) {
                 $obj = new stdClass;
-                $obj -> name = $item;
+                $obj->name = $item;
                 $item = $obj;
             }
         }

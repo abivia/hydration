@@ -1,8 +1,11 @@
 <?php
 
-class BadConfigException extends Exception {}
+class BadConfigException extends Exception
+{
+}
 
-class ConfigurableMain {
+class ConfigurableMain
+{
     use \Abivia\Configurable\Configurable;
 
     public $badClass1;
@@ -28,8 +31,9 @@ class ConfigurableMain {
     public $subDynamic;
     public $validationFails = [];
 
-    protected function addToCallable($obj) {
-        $this -> subCallable[] = $obj;
+    protected function addToCallable($obj)
+    {
+        $this->subCallable[] = $obj;
     }
 
     /**
@@ -39,7 +43,8 @@ class ConfigurableMain {
      * @return mixed An object containing a class name and key, or false
      * @codeCoverageIgnore
      */
-    protected function configureClassMap($property, $value) {
+    protected function configureClassMap($property, $value)
+    {
         static $classMap = [
             'badClass1' => ['className' => 'ThisClassDoesNotExist'],
             // badClass2 is set up below.
@@ -57,12 +62,12 @@ class ConfigurableMain {
             case 'badClass4':
                 // Test object in place of className
                 $result = new stdClass;
-                $result -> className = (object) ['totally' => 'invalid'];
+                $result->className = (object) ['totally' => 'invalid'];
                 break;
             case 'subCallable':
                 $result = new stdClass;
-                $result -> key = [$this, 'addToCallable'];
-                $result -> className = 'ConfigurableSub';
+                $result->key = [$this, 'addToCallable'];
+                $result->className = 'ConfigurableSub';
                 break;
             case 'subClass2':
                 // Test simple class name in a string
@@ -70,12 +75,12 @@ class ConfigurableMain {
                 break;
             case 'subDynamic':
                 $result = new stdClass;
-                $result -> key = 'key';
-                $result -> className = function ($value) {
+                $result->key = 'key';
+                $result->className = function ($value) {
                     if (is_array($value)) {
                         $ext = $value['type'];
                     } else {
-                        $ext = $value -> type;
+                        $ext = $value->type;
                     }
                     return 'ConfigurableType' . ucfirst($ext);
                 };
@@ -89,32 +94,34 @@ class ConfigurableMain {
         return $result;
     }
 
-    protected function configureComplete() {
-        if ($this -> genericForSubConfiguration !== null) {
+    protected function configureComplete()
+    {
+        if ($this->genericForSubConfiguration !== null) {
             // Convert the sub property into a ConfigurablesSub
-            if (isset($this -> genericForSubConfiguration -> subClass)) {
+            if (isset($this->genericForSubConfiguration->subClass)) {
                 $obj = new ConfigurableSub();
-                if (!$obj -> configure($this -> genericForSubConfiguration -> subClass, $this -> configureOptions)) {
-                    $this -> configureErrors = array_merge(
-                        $this -> configureErrors, $obj -> configureGetErrors()
+                if (!$obj->configure($this->genericForSubConfiguration->subClass, $this->configureOptions)) {
+                    $this->configureErrors = array_merge(
+                        $this->configureErrors, $obj->configureGetErrors()
                     );
                     return false;
                 }
-                $this -> genericForSubConfiguration -> subClass = $obj;
+                $this->genericForSubConfiguration->subClass = $obj;
             }
         }
         return true;
     }
 
-    protected function configureInitialize(&$config) {
-        if (is_object($config) && isset($config -> subClass) && is_array($config -> subClass)) {
-            foreach ($config -> subClass as $key => $value) {
+    protected function configureInitialize(&$config)
+    {
+        if (is_object($config) && isset($config->subClass) && is_array($config->subClass)) {
+            foreach ($config->subClass as $key => $value) {
                 if (!is_string($value)) {
                     continue;
                 }
                 $obj = new Stdclass;
-                $obj -> subProp1 = $value;
-                $config -> subClass[$key] = $obj;
+                $obj->subProp1 = $value;
+                $config->subClass[$key] = $obj;
             }
         } elseif (is_array($config) && isset($config['subClass']) && is_array($config['subClass'])) {
             foreach ($config['subClass'] as $key => $value) {
@@ -125,14 +132,16 @@ class ConfigurableMain {
             }
         }
 
-        $this -> configureOptions['_custom'] = 'appOptions';
+        $this->configureOptions['_custom'] = 'appOptions';
     }
 
-    protected function configurePropertyBlock($property) {
+    protected function configurePropertyBlock($property)
+    {
         return in_array($property, ['doNotConfigure']);
     }
 
-    protected function configurePropertyIgnore($property) {
+    protected function configurePropertyIgnore($property)
+    {
         return $property == 'ignored';
     }
 
@@ -143,7 +152,8 @@ class ConfigurableMain {
         return $property;
     }
 
-    protected function configureValidate($property, $value) {
+    protected function configureValidate($property, $value)
+    {
         switch ($property) {
             case 'prop1':
                 $result = in_array($value, ['red', 'green', 'blue']);
@@ -152,7 +162,7 @@ class ConfigurableMain {
                 $result = true;
         }
         if (!$result) {
-            $this -> configureLogError($property . ' has invalid value ' . $value
+            $this->configureLogError($property . ' has invalid value ' . $value
                 . ' in ' . __CLASS__);
         }
         return $result;
@@ -164,7 +174,8 @@ class ConfigurableMain {
  * Subclass that can be created during configuration.
  * This class uses the trait's validation, which always returns true.
  */
-class ConfigurableSub {
+class ConfigurableSub
+{
     use \Abivia\Configurable\Configurable;
 
     public $conflicted;
@@ -173,20 +184,23 @@ class ConfigurableSub {
     public $notConfigurable;
     public $subProp1;
 
-    protected function configurePropertyBlock($property) {
+    protected function configurePropertyBlock($property)
+    {
         return in_array($property, ['conflicted']);
     }
 
-    protected function configurePropertyAllow($property) {
+    protected function configurePropertyAllow($property)
+    {
         return in_array($property, ['conflicted', 'key', 'keyP', 'subProp1']);
     }
 
-    public function checkConfigurableOption($name) {
-        return $this -> configureOptions[$name];
+    public function checkConfigurableOption($name)
+    {
+        return $this->configureOptions[$name];
     }
 
     public function getKeyP() {
-        return $this -> keyP;
+        return $this->keyP;
     }
 
 }
@@ -194,7 +208,8 @@ class ConfigurableSub {
 /**
  * A test class that can be created during configuration.
  */
-class ConfigurableTypeA {
+class ConfigurableTypeA
+{
     use \Abivia\Configurable\Configurable;
 
     public $key;
@@ -205,7 +220,8 @@ class ConfigurableTypeA {
 /**
  * B test class that can be created during configuration.
  */
-class ConfigurableTypeB {
+class ConfigurableTypeB
+{
     use \Abivia\Configurable\Configurable;
 
     public $key;
@@ -242,7 +258,8 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
         'testSubclassStringNew' => '{"subClass2":{"subProp1":"subprop"}}',
     ];
 
-    static function getConfig($method, $format = '') {
+    static function getConfig($method, $format = '')
+    {
         if ($format == '') {
             $source = substr($method, 0, -4);
             $format = strtolower(substr($method, -4));
@@ -272,51 +289,55 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
         return $result;
     }
 
-	public function testConfigurableInstantiation() {
+	public function testConfigurableInstantiation()
+    {
         $obj = new ConfigurableMain();
-		$this -> assertInstanceOf('ConfigurableMain', $obj);
+		$this->assertInstanceOf('ConfigurableMain', $obj);
         $obj = new ConfigurableSub();
-		$this -> assertInstanceOf('ConfigurableSub', $obj);
+		$this->assertInstanceOf('ConfigurableSub', $obj);
 	}
 
-	public function testSimpleValid() {
+	public function testSimpleValid()
+    {
         foreach (['json', 'yaml'] as $format) {
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
-            $obj -> prop1 = 'uninitialized';
-            $this -> assertTrue($obj -> configure($config));
-            $this -> assertEquals('blue', $obj -> prop1);
-            $this -> assertEquals([], $obj -> configureGetErrors());
+            $obj->prop1 = 'uninitialized';
+            $this->assertTrue($obj->configure($config));
+            $this->assertEquals('blue', $obj->prop1);
+            $this->assertEquals([], $obj->configureGetErrors());
         }
 	}
 
     /**
      * Pass an empty options array to make sure strict defaults
      */
-	public function testSimpleValidStrictDefault() {
+	public function testSimpleValidStrictDefault()
+    {
         foreach (['json', 'yaml'] as $format) {
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
-            $obj -> prop1 = 'uninitialized';
-            $this -> assertTrue($obj -> configure($config, []));
-            $this -> assertEquals('blue', $obj -> prop1);
-            $this -> assertEquals([], $obj -> configureGetErrors());
+            $obj->prop1 = 'uninitialized';
+            $this->assertTrue($obj->configure($config, []));
+            $this->assertEquals('blue', $obj->prop1);
+            $this->assertEquals([], $obj->configureGetErrors());
         }
 	}
 
-	public function testSimpleInvalid() {
+	public function testSimpleInvalid()
+    {
         foreach (['json', 'yaml'] as $format) {
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
-            $obj -> prop1 = 'uninitialized';
-            $this -> assertFalse($obj -> configure($config));
-            $this -> assertEquals('uninitialized', $obj -> prop1);
-            $this -> assertEquals(
+            $obj->prop1 = 'uninitialized';
+            $this->assertFalse($obj->configure($config));
+            $this->assertEquals('uninitialized', $obj->prop1);
+            $this->assertEquals(
                 [
                     'prop1 has invalid value purple in ConfigurableMain',
                     'Validation failed on property "prop1"',
                 ],
-                $obj -> configureGetErrors()
+                $obj->configureGetErrors()
             );
         }
 	}
@@ -324,41 +345,44 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
     /**
      * Make sure a basic empty array returns an empty array
      */
-	public function testSimpleEmptyArray() {
+	public function testSimpleEmptyArray()
+    {
         foreach (['json', 'yaml'] as $format) {
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
-            $obj -> prop2 = 'uninitialized';
-            $this -> assertTrue($obj -> configure($config));
-            $this -> assertEquals([], $obj -> prop2);
-            $this -> assertEquals([], $obj -> configureGetErrors());
+            $obj->prop2 = 'uninitialized';
+            $this->assertTrue($obj->configure($config));
+            $this->assertEquals([], $obj->prop2);
+            $this->assertEquals([], $obj->configureGetErrors());
         }
 	}
 
-	public function testSimpleUndeclaredRelaxed() {
+	public function testSimpleUndeclaredRelaxed()
+    {
         foreach (['json', 'yaml'] as $format) {
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
-            $obj -> prop1 = 'uninitialized';
-            $this -> assertTrue($obj -> configure($config));
-            $this -> assertEquals('uninitialized', $obj -> prop1);
-            $this -> assertEquals([], $obj -> configureGetErrors());
+            $obj->prop1 = 'uninitialized';
+            $this->assertTrue($obj->configure($config));
+            $this->assertEquals('uninitialized', $obj->prop1);
+            $this->assertEquals([], $obj->configureGetErrors());
         }
 	}
 
     /**
      * The presence of an undeclared property causes configure() to fail in strict mode.
      */
-	public function testSimpleUndeclaredStrict() {
+	public function testSimpleUndeclaredStrict()
+    {
         foreach (['json', 'yaml'] as $format) {
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
-            $obj -> prop1 = 'uninitialized';
-            $this -> assertFalse($obj -> configure($config, true));
-            $this -> assertEquals('uninitialized', $obj -> prop1);
-            $this -> assertEquals(
+            $obj->prop1 = 'uninitialized';
+            $this->assertFalse($obj->configure($config, true));
+            $this->assertEquals('uninitialized', $obj->prop1);
+            $this->assertEquals(
                 ['Undefined property "undeclared" in class ConfigurableMain'],
-                $obj -> configureGetErrors()
+                $obj->configureGetErrors()
             );
         }
 	}
@@ -367,14 +391,15 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
      * The presence of a declared but ignored property succeeds but does not change
      * the value in relaxed mode.
      */
-	public function testSimpleIgnoreRelaxed() {
+	public function testSimpleIgnoreRelaxed()
+    {
         foreach (['json', 'yaml'] as $format) {
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
-            $obj -> ignored = 'uninitialized';
-            $this -> assertTrue($obj -> configure($config));
-            $this -> assertEquals('uninitialized', $obj -> ignored);
-            $this -> assertEquals([], $obj -> configureGetErrors());
+            $obj->ignored = 'uninitialized';
+            $this->assertTrue($obj->configure($config));
+            $this->assertEquals('uninitialized', $obj->ignored);
+            $this->assertEquals([], $obj->configureGetErrors());
         }
 	}
 
@@ -382,213 +407,227 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
      * The presence of a declared but ignored property succeeds but does not change
      * the value in strict mode.
      */
-	public function testSimpleIgnoreStrict() {
+	public function testSimpleIgnoreStrict()
+    {
         foreach (['json', 'yaml'] as $format) {
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
-            $obj -> ignored = 'uninitialized';
-            $this -> assertTrue($obj -> configure($config, true));
-            $this -> assertEquals('uninitialized', $obj -> ignored);
-            $this -> assertEquals([], $obj -> configureGetErrors());
+            $obj->ignored = 'uninitialized';
+            $this->assertTrue($obj->configure($config, true));
+            $this->assertEquals('uninitialized', $obj->ignored);
+            $this->assertEquals([], $obj->configureGetErrors());
         }
 	}
 
-	public function testSimpleUndeclaredStrictException() {
+	public function testSimpleUndeclaredStrictException()
+    {
         foreach (['json', 'yaml'] as $format) {
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
-            $obj -> prop1 = 'uninitialized';
+            $obj->prop1 = 'uninitialized';
             $success = null;
             try {
-                $obj -> configure($config, 'BadConfigException');
-                $this -> assertEquals([], $obj -> configureGetErrors());
+                $obj->configure($config, 'BadConfigException');
+                $this->assertEquals([], $obj->configureGetErrors());
                 $success = true;
             } catch (BadConfigException $ex) {
                 $success = false;
-                $this -> assertEquals('Undefined property "undeclared" in class ConfigurableMain', $ex -> getMessage());
+                $this->assertEquals('Undefined property "undeclared" in class ConfigurableMain', $ex->getMessage());
             }
-            $this -> assertTrue($success === false);
+            $this->assertTrue($success === false);
         }
 	}
 
-	public function testPropertyMapping() {
+	public function testPropertyMapping()
+    {
         $config = self::getConfig(__FUNCTION__, 'json');
         $obj = new ConfigurableMain();
-        $obj -> mappedClass = 'uninitialized';
-        $this -> assertTrue($obj -> configure($config));
-        $this -> assertEquals('purple', $obj -> mappedClass);
-        $this -> assertEquals([], $obj -> configureGetErrors());
+        $obj->mappedClass = 'uninitialized';
+        $this->assertTrue($obj->configure($config));
+        $this->assertEquals('purple', $obj->mappedClass);
+        $this->assertEquals([], $obj->configureGetErrors());
 	}
 
     /**
      * A relaxed attempt to set a blocked property merely doesn't set the property.
      */
-	public function testPropertyAllow() {
+	public function testPropertyAllow()
+    {
         $config = json_decode('{"notConfigurable":"purple"}');
         $obj = new ConfigurableSub();
-        $obj -> notConfigurable = 'uninitialized';
-        $this -> assertTrue($obj -> configure($config));
-        $this -> assertEquals('uninitialized', $obj -> notConfigurable);
-        $this -> assertEquals([], $obj -> configureGetErrors());
+        $obj->notConfigurable = 'uninitialized';
+        $this->assertTrue($obj->configure($config));
+        $this->assertEquals('uninitialized', $obj->notConfigurable);
+        $this->assertEquals([], $obj->configureGetErrors());
 	}
 
     /**
      * A strict attempt to set a blocked property fails.
      */
-	public function testPropertyAllowStrict() {
+	public function testPropertyAllowStrict()
+    {
         $config = json_decode('{"notConfigurable":"purple"}');
         $obj = new ConfigurableSub();
-        $obj -> notConfigurable = 'uninitialized';
-        $this -> assertFalse($obj -> configure($config, true));
-        $this -> assertEquals('uninitialized', $obj -> notConfigurable);
-        $this -> assertEquals(
+        $obj->notConfigurable = 'uninitialized';
+        $this->assertFalse($obj->configure($config, true));
+        $this->assertEquals('uninitialized', $obj->notConfigurable);
+        $this->assertEquals(
             ['Undefined property "notConfigurable" in class ConfigurableSub'],
-            $obj -> configureGetErrors()
+            $obj->configureGetErrors()
         );
 	}
 
     /**
      * ensure that blocked properties can't be set.
      */
-	public function testPropertyBlock() {
+	public function testPropertyBlock()
+    {
         $config = json_decode('{"doNotConfigure":"purple"}');
         $obj = new ConfigurableMain();
-        $obj -> doNotConfigure = 'uninitialized';
-        $this -> assertFalse($obj -> configure($config, true));
-        $this -> assertEquals('uninitialized', $obj -> doNotConfigure);
-        $this -> assertEquals(
+        $obj->doNotConfigure = 'uninitialized';
+        $this->assertFalse($obj->configure($config, true));
+        $this->assertEquals('uninitialized', $obj->doNotConfigure);
+        $this->assertEquals(
             ['Undefined property "doNotConfigure" in class ConfigurableMain'],
-            $obj -> configureGetErrors()
+            $obj->configureGetErrors()
         );
 	}
 
     /**
      * Properties both blocked and allowed should be blocked.
      */
-	public function testPropertyConflicted() {
+	public function testPropertyConflicted()
+    {
         $config = json_decode('{"conflicted":"purple"}');
         $obj = new ConfigurableSub();
-        $obj -> conflicted = 'uninitialized';
-        $this -> assertFalse($obj -> configure($config, true));
-        $this -> assertEquals('uninitialized', $obj -> conflicted);
-        $this -> assertEquals(
+        $obj->conflicted = 'uninitialized';
+        $this->assertFalse($obj->configure($config, true));
+        $this->assertEquals('uninitialized', $obj->conflicted);
+        $this->assertEquals(
             ['Undefined property "conflicted" in class ConfigurableSub'],
-            $obj -> configureGetErrors()
+            $obj->configureGetErrors()
         );
 	}
 
     /**
      * Test initializing a pre-existing subclass.
      */
-	public function testSubclassScalar() {
+	public function testSubclassScalar()
+    {
         foreach (['json', 'yaml'] as $format) {
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
-            $obj -> subClass = new ConfigurableSub();
-            $obj -> subClass -> subProp1 = 'uninitialized';
-            $this -> assertTrue($obj -> configure($config));
-            $this -> assertInstanceOf('ConfigurableSub', $obj -> subClass);
-            $this -> assertEquals('subprop', $obj -> subClass -> subProp1);
-            $this -> assertEquals([], $obj -> configureGetErrors());
+            $obj->subClass = new ConfigurableSub();
+            $obj->subClass->subProp1 = 'uninitialized';
+            $this->assertTrue($obj->configure($config));
+            $this->assertInstanceOf('ConfigurableSub', $obj->subClass);
+            $this->assertEquals('subprop', $obj->subClass->subProp1);
+            $this->assertEquals([], $obj->configureGetErrors());
             // See if our custom option got passed in
-            $this -> assertEquals('appOptions', $obj -> subClass -> checkConfigurableOption('_custom'));
+            $this->assertEquals('appOptions', $obj->subClass->checkConfigurableOption('_custom'));
         }
 	}
 
     /**
      * Test initializing an internally instantiated subclass.
      */
-	public function testSubclassScalarNew() {
+	public function testSubclassScalarNew()
+    {
         foreach (['json', 'yaml'] as $format) {
             $config = self::getConfig('testSubclassScalar', $format);
             $obj = new ConfigurableMain();
-            $obj -> prop1 = 'uninitialized';
-            $this -> assertTrue($obj -> configure($config));
-            $this -> assertInstanceOf('ConfigurableSub', $obj -> subClass);
-            $this -> assertEquals('subprop', $obj -> subClass -> subProp1);
-            $this -> assertEquals([], $obj -> configureGetErrors());
+            $obj->prop1 = 'uninitialized';
+            $this->assertTrue($obj->configure($config));
+            $this->assertInstanceOf('ConfigurableSub', $obj->subClass);
+            $this->assertEquals('subprop', $obj->subClass->subProp1);
+            $this->assertEquals([], $obj->configureGetErrors());
         }
 	}
 
-	public function testSubclassScalarNewInvalid() {
+	public function testSubclassScalarNewInvalid()
+    {
         $config = json_decode('{"subClass":{"badprop":"subprop"}}');
         $obj = new ConfigurableMain();
-        $obj -> prop1 = 'uninitialized';
-        $this -> assertFalse($obj -> configure($config, true));
-        $this -> assertInstanceOf('ConfigurableSub', $obj -> subClass);
-        $this -> assertEquals(
+        $obj->prop1 = 'uninitialized';
+        $this->assertFalse($obj->configure($config, true));
+        $this->assertInstanceOf('ConfigurableSub', $obj->subClass);
+        $this->assertEquals(
             [
                 'Unable to configure property "subClass":',
                 'Undefined property "badprop" in class ConfigurableSub',
             ],
-            $obj -> configureGetErrors()
+            $obj->configureGetErrors()
         );
 	}
 
     /**
      * Test initializing an internally instantiated subclass with a string class specification.
      */
-	public function testSubclassStringNew() {
+	public function testSubclassStringNew()
+    {
         foreach (['json', 'yaml'] as $format) {
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
-            $obj -> prop1 = 'uninitialized';
-            $this -> assertTrue($obj -> configure($config));
-            $this -> assertInstanceOf('ConfigurableSub', $obj -> subClass2);
-            $this -> assertEquals('subprop', $obj -> subClass2 -> subProp1);
-            $this -> assertEquals([], $obj -> configureGetErrors());
+            $obj->prop1 = 'uninitialized';
+            $this->assertTrue($obj->configure($config));
+            $this->assertInstanceOf('ConfigurableSub', $obj->subClass2);
+            $this->assertEquals('subprop', $obj->subClass2->subProp1);
+            $this->assertEquals([], $obj->configureGetErrors());
         }
 	}
 
-	public function testSubclassArrayNew() {
+	public function testSubclassArrayNew()
+    {
         foreach (['json', 'yaml'] as $format) {
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
-            $obj -> prop1 = 'uninitialized';
-            $this -> assertTrue($obj -> configure($config), $format);
-            $this -> assertIsArray($obj -> subClass, $format);
-            $this -> assertEquals(2, count($obj -> subClass), $format);
-            $this -> assertInstanceOf('ConfigurableSub', $obj -> subClass[0], $format);
-            $this -> assertEquals('e0', $obj -> subClass[0] -> subProp1, $format);
-            $this -> assertEquals('e1', $obj -> subClass[1] -> subProp1, $format);
-            $this -> assertEquals([], $obj -> configureGetErrors(), $format);
+            $obj->prop1 = 'uninitialized';
+            $this->assertTrue($obj->configure($config), $format);
+            $this->assertIsArray($obj->subClass, $format);
+            $this->assertEquals(2, count($obj->subClass), $format);
+            $this->assertInstanceOf('ConfigurableSub', $obj->subClass[0], $format);
+            $this->assertEquals('e0', $obj->subClass[0]->subProp1, $format);
+            $this->assertEquals('e1', $obj->subClass[1]->subProp1, $format);
+            $this->assertEquals([], $obj->configureGetErrors(), $format);
         }
 	}
 
     /**
      * Test populating an associative array when the key property is public.
      */
-	public function testSubclassArrayNewAssoc() {
+	public function testSubclassArrayNewAssoc()
+    {
         foreach (['json', 'yaml'] as $format) {
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
-            $obj -> prop1 = 'uninitialized';
-            $this -> assertTrue($obj -> configure($config));
-            $this -> assertIsArray($obj -> subAssoc);
-            $this -> assertEquals(2, count($obj -> subAssoc));
-            $this -> assertTrue(isset($obj -> subAssoc['item0']));
-            $this -> assertInstanceOf('ConfigurableSub', $obj -> subAssoc['item0']);
-            $this -> assertEquals('e0', $obj -> subAssoc['item0'] -> subProp1);
-            $this -> assertEquals('e1', $obj -> subAssoc['item1'] -> subProp1);
-            $this -> assertEquals([], $obj -> configureGetErrors());
+            $obj->prop1 = 'uninitialized';
+            $this->assertTrue($obj->configure($config));
+            $this->assertIsArray($obj->subAssoc);
+            $this->assertEquals(2, count($obj->subAssoc));
+            $this->assertTrue(isset($obj->subAssoc['item0']));
+            $this->assertInstanceOf('ConfigurableSub', $obj->subAssoc['item0']);
+            $this->assertEquals('e0', $obj->subAssoc['item0']->subProp1);
+            $this->assertEquals('e1', $obj->subAssoc['item1']->subProp1);
+            $this->assertEquals([], $obj->configureGetErrors());
         }
 	}
 
     /**
      * Check that we cast to an array when a key is specified
      */
-	public function testSubclassArrayNewAssocCast() {
+	public function testSubclassArrayNewAssocCast()
+    {
         foreach (['json', 'yaml'] as $format) {
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
-            $obj -> prop1 = 'uninitialized';
-            $this -> assertTrue($obj -> configure($config));
-            $this -> assertIsArray($obj -> subAssoc);
-            $this -> assertEquals(1, count($obj -> subAssoc));
-            $this -> assertTrue(isset($obj -> subAssoc['item0']));
-            $this -> assertInstanceOf('ConfigurableSub', $obj -> subAssoc['item0']);
-            $this -> assertEquals('e0', $obj -> subAssoc['item0'] -> subProp1);
-            $this -> assertEquals([], $obj -> configureGetErrors());
+            $obj->prop1 = 'uninitialized';
+            $this->assertTrue($obj->configure($config));
+            $this->assertIsArray($obj->subAssoc);
+            $this->assertEquals(1, count($obj->subAssoc));
+            $this->assertTrue(isset($obj->subAssoc['item0']));
+            $this->assertInstanceOf('ConfigurableSub', $obj->subAssoc['item0']);
+            $this->assertEquals('e0', $obj->subAssoc['item0']->subProp1);
+            $this->assertEquals([], $obj->configureGetErrors());
         }
 	}
 
@@ -596,178 +635,189 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
      * Test populating an associative array when the key property must be accessed
      * via a getter.
      */
-	public function testSubclassArrayNewAssocP() {
+	public function testSubclassArrayNewAssocP()
+    {
         foreach (['json', 'yaml'] as $format) {
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
-            $obj -> prop1 = 'uninitialized';
-            $this -> assertTrue($obj -> configure($config));
-            $this -> assertIsArray($obj -> subAssocP);
-            $this -> assertEquals(2, count($obj -> subAssocP));
-            $this -> assertTrue(isset($obj -> subAssocP['item0']));
-            $this -> assertInstanceOf('ConfigurableSub', $obj -> subAssocP['item0']);
-            $this -> assertEquals('e0', $obj -> subAssocP['item0'] -> subProp1);
-            $this -> assertEquals('e1', $obj -> subAssocP['item1'] -> subProp1);
-            $this -> assertEquals([], $obj -> configureGetErrors());
+            $obj->prop1 = 'uninitialized';
+            $this->assertTrue($obj->configure($config));
+            $this->assertIsArray($obj->subAssocP);
+            $this->assertEquals(2, count($obj->subAssocP));
+            $this->assertTrue(isset($obj->subAssocP['item0']));
+            $this->assertInstanceOf('ConfigurableSub', $obj->subAssocP['item0']);
+            $this->assertEquals('e0', $obj->subAssocP['item0']->subProp1);
+            $this->assertEquals('e1', $obj->subAssocP['item1']->subProp1);
+            $this->assertEquals([], $obj->configureGetErrors());
         }
 	}
 
     /**
      * Check that we handle an empty subclass array
      */
-	public function testSubclassArrayNewEmpty() {
+	public function testSubclassArrayNewEmpty()
+    {
         foreach (['json', 'yaml'] as $format) {
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
-            $this -> assertTrue($obj -> configure($config));
-            $this -> assertIsArray($obj -> subClass);
-            $this -> assertEquals(0, count($obj -> subClass));
-            $this -> assertEquals([], $obj -> configureGetErrors());
+            $this->assertTrue($obj->configure($config));
+            $this->assertIsArray($obj->subClass);
+            $this->assertEquals(0, count($obj->subClass));
+            $this->assertEquals([], $obj->configureGetErrors());
         }
 	}
 
-	public function testSubclassArrayNewInvalid() {
+	public function testSubclassArrayNewInvalid()
+    {
         $config = json_decode('{"subClass":[{"subProp1":"e0"},{"badprop":"e1"}]}');
         $obj = new ConfigurableMain();
-        $obj -> prop1 = 'uninitialized';
-        $this -> assertFalse($obj -> configure($config, true));
-        $this -> assertIsArray($obj -> subClass);
-        $this -> assertEquals(2, count($obj -> subClass));
-        $this -> assertInstanceOf('ConfigurableSub', $obj -> subClass[0]);
-        $this -> assertEquals('e0', $obj -> subClass[0] -> subProp1);
-        $this -> assertEquals(
+        $obj->prop1 = 'uninitialized';
+        $this->assertFalse($obj->configure($config, true));
+        $this->assertIsArray($obj->subClass);
+        $this->assertEquals(2, count($obj->subClass));
+        $this->assertInstanceOf('ConfigurableSub', $obj->subClass[0]);
+        $this->assertEquals('e0', $obj->subClass[0]->subProp1);
+        $this->assertEquals(
             [
                 'Unable to configure property "subClass":',
                 'Undefined property "badprop" in class ConfigurableSub',
             ],
-            $obj -> configureGetErrors()
+            $obj->configureGetErrors()
         );
 	}
 
     /**
      * Test transforming data in initialization
      */
-	public function testSubclassArrayNewTransform() {
+	public function testSubclassArrayNewTransform()
+    {
         foreach (['json', 'yaml'] as $format) {
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
-            $obj -> prop1 = 'uninitialized';
-            $this -> assertTrue($obj -> configure($config), $format);
-            $this -> assertIsArray($obj -> subClass, $format);
-            $this -> assertEquals(3, count($obj -> subClass), $format);
-            $this -> assertInstanceOf('ConfigurableSub', $obj -> subClass[0], $format);
-            $this -> assertEquals('e0', $obj -> subClass[0] -> subProp1, $format);
-            $this -> assertEquals('e1', $obj -> subClass[1] -> subProp1, $format);
-            $this -> assertEquals('e2', $obj -> subClass[2] -> subProp1, $format);
-            $this -> assertEquals([], $obj -> configureGetErrors(), $format);
+            $obj->prop1 = 'uninitialized';
+            $this->assertTrue($obj->configure($config), $format);
+            $this->assertIsArray($obj->subClass, $format);
+            $this->assertEquals(3, count($obj->subClass), $format);
+            $this->assertInstanceOf('ConfigurableSub', $obj->subClass[0], $format);
+            $this->assertEquals('e0', $obj->subClass[0]->subProp1, $format);
+            $this->assertEquals('e1', $obj->subClass[1]->subProp1, $format);
+            $this->assertEquals('e2', $obj->subClass[2]->subProp1, $format);
+            $this->assertEquals([], $obj->configureGetErrors(), $format);
         }
 	}
 
     /**
      * Case where a requested class does not exist
      */
-	public function testSubclassBad1() {
+	public function testSubclassBad1()
+    {
         $config = json_decode('{"badClass1":{"subProp1":"e0"}}');
         $obj = new ConfigurableMain();
-        $this -> assertFalse($obj -> configure($config), true);
-        $this -> assertEquals(
+        $this->assertFalse($obj->configure($config), true);
+        $this->assertEquals(
             [
                 'Unable to configure property "badClass1":',
                 'Undefined class "ThisClassDoesNotExist" configuring "badClass1" in class ConfigurableMain'
             ],
-            $obj -> configureGetErrors()
+            $obj->configureGetErrors()
         );
 	}
 
     /**
      * Case where a requested class is not a string
      */
-	public function testSubclassBad2() {
+	public function testSubclassBad2()
+    {
         $config = json_decode('{"badClass2":{"subProp1":"e0"}}');
         $obj = new ConfigurableMain();
-        $this -> assertFalse($obj -> configure($config), true);
-        $this -> assertEquals(
+        $this->assertFalse($obj->configure($config), true);
+        $this->assertEquals(
             [
                 'Unable to configure property "badClass2":',
                 'Invalid class specification configuring "badClass2" in class ConfigurableMain'
             ],
-            $obj -> configureGetErrors()
+            $obj->configureGetErrors()
         );
 	}
 
     /**
      * Case where we try to use a bad callable for a subclass
      */
-	public function testSubclassBad3() {
+	public function testSubclassBad3()
+    {
         $config = json_decode('{"badClass3":{"subProp1":"e0"}}');
         $obj = new ConfigurableMain();
-        $this -> assertFalse($obj -> configure($config), true);
-        $this -> assertEquals(
+        $this->assertFalse($obj->configure($config), true);
+        $this->assertEquals(
             [
                 'Unable to configure property "badClass3":',
                 'Bad callable [not, callable] configuring "badClass3" in class ConfigurableMain'
             ],
-            $obj -> configureGetErrors()
+            $obj->configureGetErrors()
         );
 	}
 
     /**
      * Case where we try to use an object as a callable
      */
-	public function testSubclassBad4() {
+	public function testSubclassBad4()
+    {
         $config = json_decode('{"badClass4":{"subProp1":"e0"}}');
         $obj = new ConfigurableMain();
-        $this -> assertFalse($obj -> configure($config), true);
-        $this -> assertEquals(
+        $this->assertFalse($obj->configure($config), true);
+        $this->assertEquals(
             [
                 'Unable to configure property "badClass4":',
                 'Unexpected "stdClass" Object configuring "badClass4" in class ConfigurableMain'
             ],
-            $obj -> configureGetErrors()
+            $obj->configureGetErrors()
         );
 	}
 
-	public function testSubclassCallableNew() {
+	public function testSubclassCallableNew()
+    {
         $config = json_decode('{"subCallable":[{"subProp1":"e0"},{"subProp1":"e1"}]}');
         $obj = new ConfigurableMain();
-        $this -> assertTrue($obj -> configure($config));
-        $this -> assertIsArray($obj -> subCallable);
-        $this -> assertEquals(2, count($obj -> subCallable));
-        $this -> assertInstanceOf('ConfigurableSub', $obj -> subCallable[0]);
-        $this -> assertEquals('e0', $obj -> subCallable[0] -> subProp1);
-        $this -> assertEquals('e1', $obj -> subCallable[1] -> subProp1);
-        $this -> assertEquals([], $obj -> configureGetErrors());
+        $this->assertTrue($obj->configure($config));
+        $this->assertIsArray($obj->subCallable);
+        $this->assertEquals(2, count($obj->subCallable));
+        $this->assertInstanceOf('ConfigurableSub', $obj->subCallable[0]);
+        $this->assertEquals('e0', $obj->subCallable[0]->subProp1);
+        $this->assertEquals('e1', $obj->subCallable[1]->subProp1);
+        $this->assertEquals([], $obj->configureGetErrors());
 	}
 
     /**
      * Test use of a closure to trigger data-dependent instantiation
      */
-	public function testSubclassDynamic() {
+	public function testSubclassDynamic()
+    {
         foreach (['json', 'yaml'] as $format) {
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
-            $obj -> prop1 = 'uninitialized';
-            $this -> assertTrue($obj -> configure($config));
-            $this -> assertIsArray($obj -> subDynamic);
-            $this -> assertEquals(2, count($obj -> subDynamic));
-            $this -> assertTrue(isset($obj -> subDynamic['item0']));
-            $this -> assertInstanceOf('ConfigurableTypeA', $obj -> subDynamic['item0']);
-            $this -> assertEquals('e0', $obj -> subDynamic['item0'] -> propA);
-            $this -> assertInstanceOf('ConfigurableTypeB', $obj -> subDynamic['item1']);
-            $this -> assertEquals('e1', $obj -> subDynamic['item1'] -> propB);
-            $this -> assertEquals([], $obj -> configureGetErrors());
+            $obj->prop1 = 'uninitialized';
+            $this->assertTrue($obj->configure($config));
+            $this->assertIsArray($obj->subDynamic);
+            $this->assertEquals(2, count($obj->subDynamic));
+            $this->assertTrue(isset($obj->subDynamic['item0']));
+            $this->assertInstanceOf('ConfigurableTypeA', $obj->subDynamic['item0']);
+            $this->assertEquals('e0', $obj->subDynamic['item0']->propA);
+            $this->assertInstanceOf('ConfigurableTypeB', $obj->subDynamic['item1']);
+            $this->assertEquals('e1', $obj->subDynamic['item1']->propB);
+            $this->assertEquals([], $obj->configureGetErrors());
         }
 	}
 
     /**
      * Ensure that nested calls to configure do not modify the source data.
      */
-    public function testNestedDoesNotCorruptSource() {
+    public function testNestedDoesNotCorruptSource()
+    {
         $source = json_decode(self::$configSource[__FUNCTION__]);
         $config =  json_decode(self::$configSource[__FUNCTION__]);
         $obj = new ConfigurableMain();
-        $this -> assertTrue($obj -> configure($config));
-        $this -> assertEquals($source, $config);
+        $this->assertTrue($obj->configure($config));
+        $this->assertEquals($source, $config);
     }
 
 }
