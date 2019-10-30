@@ -129,33 +129,21 @@ can be used to return a previously instantiated object to a known state.
 array, and is thus able to pre-process the inputs if required.
 
 One use case for pre-processing during initialization is to allow shorthand expressions.
-For example, if you have a series of objects with one property:
+For example, if you have an object with one property:
 ```json
-{
-    "list": [
-        {"name": "foo"},
-        {"name": "bar"},
-        {"name": "bat"}
-    ]
-}
+{"name": "foo"}
 ```
 Your application can support a shorthand expression:
 ```json
-{
-    "list": ["foo", "bar", "bat"]
-}
+"somevalue"
 ```
 With this code in the initialization:
 ```php
 protected function configureInitialize(&$config) {
-    if (isset($config->list) && is_array($config->list)) {
-        foreach ($config->list as &$item) {
-            if (is_string($item)) {
-                $obj = new stdClass;
-                $obj->name = $item;
-                $item = $obj;
-            }
-        }
+    if (is_string($config)) {
+        $obj = new stdClass;
+        $obj->name = $config;
+        $config = $obj;
     }
 }
 ```
@@ -197,15 +185,15 @@ trait.
 `configureClassMap()` takes the name and value of a property as arguments and returns:
 
 - the name of a class to be instantiated and configured, or
-- an object that has a required `className` property and an optional `key` property.
+- an object that has the `className` property and any of the optional properties.
 
-### className
+### className (string|callable)
 In the simplest case, `className` is the
 name of a class that will be instantiated and configured. However, `className` may also be
 a callable that takes the current property value as an argument.
 This allows the creation of data-specific object classes.
 
-### key
+### key (string|callable)
 The `key` property is optional and tells Configurable to populate an array.
 
  - if `key` is absent or blank, the constructed object is appended to the array,
@@ -215,9 +203,14 @@ key for an associative array, and
  - if `key` is a callable array, then it is called with the object under construction
 as an argument.
 
-### keyIsMethod
+### keyIsMethod (bool)
 The `keyIsMethod` property is only used when `key` is present and not a callable. When
 set, `key` is treated as a method of the constructed object. Typically this is a getter.
+
+### allowDups (bool)
+If Configurable is creating an associative array, the normal response to a duplicate
+key is to generate an error message. if the `allowDups` flag is present and set,
+no error is generated.
 
 Error Logging
 -------------

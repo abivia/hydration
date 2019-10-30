@@ -1,16 +1,22 @@
 Change log for Abivia\Configurable
 ====
 
+0.5.2
+----
+
+- Generate errors for duplicate keys in associative arrays unless the new
+  `allowDups` flag is set in the object returned by `configureClassMap()`.
+
 0.5.1
 ----
 
-- Remove options argument from `configureInitialize()`: redundant and misleading
+- Remove options argument from `configureInitialize()`: redundant and misleading.
 
 0.5.0
 ----
 
-- Fix return types in some docblock comments that was confusing Netbeans
-- `configureInitialize()` now accepts references to the source data and options array
+- Fix return types in some docblock comments that was confusing Netbeans.
+- `configureInitialize()` now accepts references to the source data and options array.
 
 0.4.0
 ----
@@ -40,4 +46,4 @@ Change log for Abivia\Configurable
 0.1.0
 ----
 
-- Initial release
+- Initial release.

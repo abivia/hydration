@@ -94,7 +94,32 @@ trait Configurable
     }
 
     /**
-     * Map a property to a class.
+     * Map a property to a class to handle nested objects.
+     * The return value is false, a string, or an object.
+     * If the return value is false, the object is stored without further work.
+     * If the return value is a string, it is treated as the name of a
+     * Configurable class via the configure() method.
+     * The returned object follows this form:
+     *  {
+     *      className (string|callable): The name of the class to be used for
+     *          configuration or a callable that takes the current value and
+     *          returns a class name.
+     *      keyIsMethod (bool, optional): If set, then the key will be treated
+     *          as a method in the created object. The method should return a key.
+     *      key (string|callable, optional): If key is a string, this is
+     *          the name of a property or method in the configured object that
+     *          will be used to index an associative array. If it is callable,
+     *          then the callable returns the key.
+     *      allowDups (bool, optional): if present and set, duplicate keys are
+     *          allowed (data can be overwritten). If not present or not set,
+     *          duplicate keys will cause an error to be logged.
+     *  }
+     * The returned object can either contain className, or the properties 'className'
+     * and 'key'. If the key is defined and empty then new values are appended
+     * to the end of the array. If key is present, it is assumed
+     * that the values are objects and key is the property within that object to be used as
+     * the array key (so if key is 'id' $somearray['myid'] = {id => myid; etc}).
+     *
      * @param string $property The current class property name.
      * @param mixed $value The value to be stored in the property, made available for inspection.
      * @return mixed An object containing a class name/callable and key, a class name, or false
@@ -104,12 +129,6 @@ trait Configurable
     {
         /*
          *
-         * Handles nested objects.
-         * The returned object can either contain className, or the properties 'className'
-         * and 'key'. If the key is defined and empty then new values are appended
-         * to the end of the array. If key is present, it is assumed
-         * that the values are objects and key is the property within that object to be used as
-         * the array key (so if key is 'id' $somearray['myid'] = {id => myid; etc}).
          *
          */
         return false;
@@ -187,24 +206,35 @@ trait Configurable
         $goodClass = true;
         if (is_array($value)) {
             $this->$property = [];
-            foreach ($value as $key => $element) {
+            foreach ($value as $element) {
                 $ourClass = $this->configureGetClass($specs, $element);
-                if (($goodClass = is_string($ourClass) && class_exists($ourClass))) {
-                    $obj = new $ourClass;
-                    if (!$obj->configure($element, $options)) {
-                        $result = $obj->configureGetErrors();
-                    }
-                    if (!isset($specs->key) || $specs->key == '') {
-                        $this->$property[] = $obj;
-                    } elseif (is_array($specs->key) && is_callable($specs->key)) {
-                        call_user_func($specs->key, $obj);
-                    } elseif (isset($specs->keyIsMethod) && $specs->keyIsMethod) {
-                        $this->$property[$obj->{$specs->key}()] = $obj;
-                    } else {
-                        $this->$property[$obj->{$specs->key}] = $obj;
-                    }
-                } else {
+                if (!($goodClass = is_string($ourClass) || !class_exists($ourClass))) {
                     break;
+                }
+                $obj = new $ourClass;
+                if (!$obj->configure($element, $options)) {
+                    $result = $obj->configureGetErrors();
+                }
+                if (!isset($specs->key) || $specs->key == '') {
+                    $this->$property[] = $obj;
+                } elseif (is_array($specs->key) && is_callable($specs->key)) {
+                    call_user_func($specs->key, $obj);
+                } else {
+                    if (isset($specs->keyIsMethod) && $specs->keyIsMethod) {
+                        $storeKey = $obj->{$specs->key}();
+                    } else {
+                        $storeKey = $obj->{$specs->key};
+                    }
+                    if (
+                        (!isset($specs->allowDups) || !$specs->allowDups)
+                        && isset($this->$property[$storeKey])
+                    ) {
+                        $result[] = 'Duplicate key "' . $storeKey . '"'
+                            . ' configuring "' . $property
+                            . '" in class ' . __CLASS__;
+                    } else {
+                        $this->$property[$storeKey] = $obj;
+                    }
                 }
             }
         } else {
@@ -227,7 +257,8 @@ trait Configurable
             } else {
                 $msg = 'Undefined class "' . $ourClass . '"';
             }
-            $result[] = $msg . ' configuring "' . $property . '" in class ' . __CLASS__;
+            $result[] = $msg . ' configuring "' . $property
+                . '" in class ' . __CLASS__;
         }
         return $result;
     }

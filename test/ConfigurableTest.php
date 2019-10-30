@@ -24,6 +24,7 @@ class ConfigurableMain
     public $prop1;
     public $prop2;
     public $subAssoc;
+    public $subAssocDup;
     public $subAssocP;
     public $subCallable;
     public $subClass;
@@ -51,6 +52,7 @@ class ConfigurableMain
             'badClass3' => ['className' => ['not', 'callable']],
             // badClass4 is set up below.
             'subAssoc' => ['className' => 'ConfigurableSub', 'key' => 'key'],
+            'subAssocDup' => ['className' => 'ConfigurableSub', 'key' => 'key', 'allowDups' => true],
             'subAssocP' => ['className' => 'ConfigurableSub', 'key' => 'getKeyP', 'keyIsMethod' => true],
             'subClass' => ['className' => 'ConfigurableSub'],
         ];
@@ -246,6 +248,8 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
         'testSubclassArrayNew' => '{"subClass":[{"subProp1":"e0"},{"subProp1":"e1"}]}',
         'testSubclassArrayNewAssoc' => '{"subAssoc":[{"key":"item0","subProp1":"e0"},{"key":"item1","subProp1":"e1"}]}',
         'testSubclassArrayNewAssocCast' => '{"subAssoc":{"key":"item0","subProp1":"e0"}}',
+        'testSubclassArrayNewAssocDupKeys' => '{"subAssocDup":[{"key":"item0","subProp1":"e0"},{"key":"item0","subProp1":"e1"}]}',
+        'testSubclassArrayNewAssocNoDupKeys' => '{"subAssoc":[{"key":"item0","subProp1":"e0"},{"key":"item0","subProp1":"e1"}]}',
         'testSubclassArrayNewAssocP' => '{"subAssocP":[{"keyP":"item0","subProp1":"e0"},{"keyP":"item1","subProp1":"e1"}]}',
         'testSubclassArrayNewEmpty' => '{"subClass":[]}',
         'testSubclassDynamic'  => '{"subDynamic":['
@@ -630,6 +634,53 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
             $this->assertEquals([], $obj->configureGetErrors());
         }
 	}
+
+    /**
+     * Test duplicate keys allowed
+     */
+    public function testSubclassArrayNewAssocDupKeys()
+    {
+        foreach (['json', 'yaml'] as $format) {
+            $config = self::getConfig(__FUNCTION__, $format);
+            $obj = new ConfigurableMain();
+            $obj->prop1 = 'uninitialized';
+            $this->assertTrue($obj->configure($config));
+            $this->assertIsArray($obj->subAssocDup);
+            $this->assertEquals(1, count($obj->subAssocDup));
+            $this->assertTrue(isset($obj->subAssocDup['item0']));
+            $this->assertInstanceOf('ConfigurableSub', $obj->subAssocDup['item0']);
+            $this->assertEquals('e1', $obj->subAssocDup['item0']->subProp1);
+            $this->assertEquals(
+                [],
+                $obj->configureGetErrors()
+            );
+        }
+    }
+
+    /**
+     * Test duplicate key error
+     */
+    public function testSubclassArrayNewAssocNoDupKeys()
+    {
+        foreach (['json', 'yaml'] as $format) {
+            $config = self::getConfig(__FUNCTION__, $format);
+            $obj = new ConfigurableMain();
+            $obj->prop1 = 'uninitialized';
+            $this->assertFalse($obj->configure($config));
+            $this->assertIsArray($obj->subAssoc);
+            $this->assertEquals(1, count($obj->subAssoc));
+            $this->assertTrue(isset($obj->subAssoc['item0']));
+            $this->assertInstanceOf('ConfigurableSub', $obj->subAssoc['item0']);
+            $this->assertEquals('e0', $obj->subAssoc['item0']->subProp1);
+            $this->assertEquals(
+                [
+                    'Unable to configure property "subAssoc":',
+                    'Duplicate key "item0" configuring "subAssoc" in class ConfigurableMain',
+                ],
+                $obj->configureGetErrors()
+            );
+        }
+    }
 
     /**
      * Test populating an associative array when the key property must be accessed
