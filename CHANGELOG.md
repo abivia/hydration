@@ -1,6 +1,10 @@
 Change log for Abivia\Configurable
 ====
 
+1.0.0
+----
+- Stable release
+
 0.5.2
 ----
 
