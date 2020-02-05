@@ -1,6 +1,12 @@
 Change log for Abivia\Configurable
 ====
 
+1.0.1
+----
+- Allow array return from `configurableClassMap()`
+- Bugfix: catch malformed result from `configurableClassMap()`
+- Documentation improvements
+
 1.0.0
 ----
 - Stable release

@@ -56,6 +56,10 @@ trait Configurable
                         $result = false;
                     }
                 } elseif (($specs = $this->configureClassMap($property, $value))) {
+                    // Make sure we got an object
+                    if (is_array($specs) && isset($specs['className'])) {
+                        $specs = (object) $specs;
+                    }
                     // Instantiate and configure the property
                     $log = $this->configureInstance($specs, $property, $value, $subOptions);
                     if (!empty($log)) {
@@ -208,7 +212,8 @@ trait Configurable
             $this->$property = [];
             foreach ($value as $element) {
                 $ourClass = $this->configureGetClass($specs, $element);
-                if (!($goodClass = is_string($ourClass) || !class_exists($ourClass))) {
+                $goodClass = is_string($ourClass) && class_exists($ourClass);
+                if (!$goodClass) {
                     break;
                 }
                 $obj = new $ourClass;

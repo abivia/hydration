@@ -66,6 +66,10 @@ class ConfigurableMain
                 $result = new stdClass;
                 $result->className = (object) ['totally' => 'invalid'];
                 break;
+            case 'subAssoc':
+                // return an array instead of object
+                $result = $classMap[$property];
+                break;
             case 'subCallable':
                 $result = new stdClass;
                 $result->key = [$this, 'addToCallable'];

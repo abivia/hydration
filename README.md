@@ -6,12 +6,80 @@ decoding JSON or YAML configuration files, into PHP classes. `Configurable`
 can convert arrays of objects into associative arrays using a property of
 the object. It can also validate inputs as well as guard and remap property names.
 
+Example
+----
+`Configurable` makes it easy to take data like this:
+
+```json
+{
+    "application-name": "MyApp",
+    "database": [
+        {
+            "label": "crm",
+            "driver": "mysql",
+            "host": "localhost",
+            "name": "crm",
+            "pass": "insecure",
+            "port": 3306,
+            "user": "admin"
+        },
+        {
+            "label": "geocoder",
+            "driver": "mysql",
+            "host": "localhost",
+            "name": "geo",
+            "pass": "insecure",
+            "port": 3306,
+            "user": "admin"
+        }
+    ]
+}
+```
+
+and turn it into a class structure like this:
+
+```
+Environment Object
+(
+    [appName] => MyApp
+    [database] => Array
+        (
+            [crm] => DatabaseConfiguration Object
+                (
+                    [driver:protected] => mysql
+                    [host:protected] => localhost
+                    [key] => crm
+                    [label:protected] => crm
+                    [name:protected] => crm
+                    [pass:DatabaseConfiguration:private] => insecure
+                    [port:protected] => 3306
+                    [user:protected] => admin
+                )
+
+            [geocoder] => DatabaseConfiguration Object
+                (
+                    [driver:protected] => mysql
+                    [host:protected] => localhost
+                    [key] => geocoder
+                    [label:protected] => geocoder
+                    [name:protected] => geo
+                    [pass:DatabaseConfiguration:private] => insecure
+                    [port:protected] => 3306
+                    [user:protected] => admin
+                )
+        )
+)
+```
+
+Features
+----
+
 `Configurable` supports property mapping, gated properties (via allow, block, and ignore methods),
 data validation, and data-driven class instantiation. It will map arrays of objects to
 associative arrays of PHP classes that are indexed by any unique scalar property in the object.
 
 Loading can be either fault-tolerant or strict. Strict validation can either fail with a
-`false` result or by throwing the `Exception` class of your choice.
+`false` result or by throwing an Exception you specify.
 
 Installation
 ----
@@ -177,20 +245,19 @@ protected function configurePropertyMap($property) {
 
 Contained Classes
 ---
-`configureClassMap()` can be used to cause the instantiation and configuration
-of classes that are contained within the top level class. These contained classes must provide
-the `configure()` method, either of their own making or by also adopting the `Configurable`
-trait.
+The real power of Configurable is through `configureClassMap()` which can be
+used to instantiate and configure classes that are contained in the current
+class. Contained classes must provide the `configure()` method, either via the
+`Configurable` trait or by providing their own method.
 
 `configureClassMap()` takes the name and value of a property as arguments and returns:
 
 - the name of a class to be instantiated and configured, or
-- an object that has the `className` property and any of the optional properties.
+- an array or object that has the `className` property and any of the optional properties.
 
 ### className (string|callable)
-In the simplest case, `className` is the
-name of a class that will be instantiated and configured. However, `className` may also be
-a callable that takes the current property value as an argument.
+`className` can be the name of a class that will be instantiated and configured,
+or it can be a callable that takes the current property value as an argument.
 This allows the creation of data-specific object classes.
 
 ### key (string|callable)
