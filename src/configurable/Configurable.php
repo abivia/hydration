@@ -178,9 +178,10 @@ trait Configurable
     /**
      * Initialize configuration.
      * @param object $config Object from decoding a configuration file (typically from JSON).
+     * @param mixed $context Any application-dependent information.
      * @return mixed Application dependent; a return value of false will cause an abort.
      */
-    protected function configureInitialize(&$config)
+    protected function configureInitialize(&$config, ...$context)
     {
         return true;
     }
