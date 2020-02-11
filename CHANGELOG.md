@@ -1,6 +1,11 @@
 Change log for Abivia\Configurable
 ====
 
+1.0.2
+----
+
+- Allow `configureInitialize()` to receive application context.
+
 1.0.1
 ----
 - Allow array return from `configurableClassMap()`
