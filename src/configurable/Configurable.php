@@ -41,6 +41,11 @@ trait Configurable
 //        }
         foreach ($config as $origProperty => $value) {
             $property = $this->configurePropertyMap($origProperty);
+            if (is_array($property)) {
+                list($property, $propertyIndex) = $property;
+            } else {
+                $propertyIndex = null;
+            }
             // Check for allowed/blocked/declared properties, block takes precedence.
             $blocked = $this->configurePropertyBlock($property);
             $ignored = $this->configurePropertyIgnore($property);
@@ -72,9 +77,15 @@ trait Configurable
                 } elseif ($this->configureValidate($property, $value)) {
                     if (is_object($value)) {
                         // Clone the stdClass so we can't corrupt the source data
-                        $this->$property = clone $value;
-                    } else {
+                        if ($propertyIndex === null) {
+                            $this->$property = clone $value;
+                        } else {
+                            $this->$property[$propertyIndex] = clone $value;
+                        }
+                    } elseif ($propertyIndex === null) {
                         $this->$property = $value;
+                    } else {
+                        $this->$property[$propertyIndex] = $value;
                     }
                 } else {
                     $this->configureLogError(
@@ -314,9 +325,11 @@ trait Configurable
     }
 
     /**
-     * Map the configured property name to the class property.
+     * Map the configured property name to the class property. Can return a
+     * modified property name or an array of [property, index] for an array.
+     *
      * @param string $property
-     * @return string
+     * @return string|array
      */
     protected function configurePropertyMap($property)
     {

@@ -243,6 +243,23 @@ protected function configurePropertyMap($property) {
 }
 ```
 
+If the property does not reference another configurable class then
+the method can also return an array containing a property name and array index.
+For example this json:
+
+```json
+{
+    "prop.one": "element one",
+    "prop.six": "element six"
+}
+```
+
+Can be used to create an array:
+
+````php
+$configured->prop = ['one' => 'element one', 'six' => 'element six']
+````
+
 Contained Classes
 ---
 The real power of Configurable is through `configureClassMap()` which can be

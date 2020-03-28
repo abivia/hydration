@@ -23,6 +23,7 @@ class ConfigurableMain
     public $mappedClass;
     public $prop1;
     public $prop2;
+    public $propArray;
     public $subAssoc;
     public $subAssocDup;
     public $subAssocP;
@@ -152,8 +153,10 @@ class ConfigurableMain
     }
 
     protected function configurePropertyMap($property) {
-        if ($property == 'class') {
+        if ($property === 'class') {
             $property = 'mappedClass';
+        } elseif (substr($property, 0, 5) == 'array') {
+            $property = ['propArray', substr($property, 5)];
         }
         return $property;
     }
@@ -240,6 +243,7 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
     static $configSource = [
         'testNestedDoesNotCorruptSource' => '{"genericForSubConfiguration":{"subClass":[{"subProp1":"e0"},{"subProp1":"e1"}]}}',
         'testPropertyMapping' => '{"class":"purple"}',
+        'testPropertyMappingArray' => '{"array1":"one", "array5":"five"}',
         'testSimpleEmptyArray' => '{"prop2":[]}',
         'testSimpleIgnoreRelaxed' => '{"ignored":"purple"}',
         'testSimpleIgnoreStrict' => '{"ignored":"purple"}',
@@ -453,6 +457,15 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
         $obj->mappedClass = 'uninitialized';
         $this->assertTrue($obj->configure($config));
         $this->assertEquals('purple', $obj->mappedClass);
+        $this->assertEquals([], $obj->configureGetErrors());
+	}
+
+	public function testPropertyMappingArray()
+    {
+        $config = self::getConfig(__FUNCTION__, 'json');
+        $obj = new ConfigurableMain();
+        $this->assertTrue($obj->configure($config));
+        $this->assertEquals(['1' => 'one', '5' => 'five'], $obj->propArray);
         $this->assertEquals([], $obj->configureGetErrors());
 	}
 
