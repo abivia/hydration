@@ -1,6 +1,12 @@
 Change log for Abivia\Configurable
 ====
 
+1.0.3
+----
+
+- `configurePropertyMap` can now return an array of [property, index] to allow
+  mapping to an array.
+
 1.0.2
 ----
 
