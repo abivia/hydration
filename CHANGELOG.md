@@ -5,7 +5,7 @@ Change log for Abivia\Configurable
 ---
 
 - Added `construct` and `constructUnpack` flags to results from class mapping.
-    This instantiation of classes via constructor, eg. DateInterval.
+    This allows instantiation of classes via constructor, eg. DateInterval.
 
 1.0.3
 ----
