@@ -1,5 +1,4 @@
 # Select image from https://hub.docker.com/_/php/
-image: php:7.3
 
 # Select what we should cache
 cache:
@@ -22,6 +21,17 @@ before_script:
   # Install all project dependencies
   - php composer.phar install
 
-test:php7:
+test:php7.2:
+  image: php:7.2
+  script:
+    - vendor/bin/phpunit --configuration test/configuration.xml --coverage-text --colors=never
+
+test:php7.3:
+  image: php:7.3
+  script:
+    - vendor/bin/phpunit --configuration test/configuration.xml --coverage-text --colors=never
+
+test:php7.4:
+  image: php:7.4
   script:
     - vendor/bin/phpunit --configuration test/configuration.xml --coverage-text --colors=never
