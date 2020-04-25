@@ -1,5 +1,7 @@
 <?php
 
+use Symfony\Component\Yaml\Yaml;
+
 class BadConfigException extends Exception
 {
 }
@@ -238,7 +240,8 @@ class ConfigurableTypeB
     public $type;
 }
 
-class ConfigurableTest extends \PHPUnit\Framework\TestCase {
+class ConfigurableTest extends \PHPUnit\Framework\TestCase
+{
 
     static $configSource = [
         'testNestedDoesNotCorruptSource' => '{"genericForSubConfiguration":{"subClass":[{"subProp1":"e0"},{"subProp1":"e1"}]}}',
@@ -288,8 +291,8 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
             case 'yaml':
                 $result = json_decode(self::$configSource[$source], true);
                 if ($result) {
-                    $yaml = yaml_emit($result);
-                    $result = yaml_parse($yaml);
+                    $yaml = Yaml::dump($result);
+                    $result = Yaml::parse($yaml);
                 }
                 break;
             default:
@@ -558,7 +561,11 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase {
             $config = self::getConfig('testSubclassScalar', $format);
             $obj = new ConfigurableMain();
             $obj->prop1 = 'uninitialized';
-            $this->assertTrue($obj->configure($config));
+            $result = $obj->configure($config);
+            $this->assertTrue(
+                $result,
+                $format . "\n" . implode("\n", $obj->configureGetErrors())
+            );
             $this->assertInstanceOf('ConfigurableSub', $obj->subClass);
             $this->assertEquals('subprop', $obj->subClass->subProp1);
             $this->assertEquals([], $obj->configureGetErrors());
