@@ -62,11 +62,25 @@ trait Configurable
                     }
                 } elseif (($specs = $this->configureClassMap($property, $value))) {
                     // Make sure we got an object
+                    if (is_string($specs)) {
+                        $specs = (object) ['className' => $specs];
+                    }
                     if (is_array($specs) && isset($specs['className'])) {
                         $specs = (object) $specs;
                     }
+                    if (is_object($specs)) {
+                        $specs->construct = $specs->construct ?? false;
+                        $specs->constructUnpack = $specs->constructUnpack ?? false;
+                    }
+                    if (
+                        is_object($specs)
+                        && ($specs->construct || $specs->constructUnpack)
+                    ) {
+                        $this->configureConstruct($property, $propertyIndex, $specs, $value);
+                    } else {
                     // Instantiate and configure the property
-                    $log = $this->configureInstance($specs, $property, $value, $subOptions);
+                        $log = $this->configureInstance($specs, $property, $value, $subOptions);
+                    }
                     if (!empty($log)) {
                         array_unshift(
                             $log, 'Unable to configure property "' . $origProperty . '":'
@@ -75,18 +89,7 @@ trait Configurable
                         $result = false;
                     }
                 } elseif ($this->configureValidate($property, $value)) {
-                    if (is_object($value)) {
-                        // Clone the stdClass so we can't corrupt the source data
-                        if ($propertyIndex === null) {
-                            $this->$property = clone $value;
-                        } else {
-                            $this->$property[$propertyIndex] = clone $value;
-                        }
-                    } elseif ($propertyIndex === null) {
-                        $this->$property = $value;
-                    } else {
-                        $this->$property[$propertyIndex] = $value;
-                    }
+                    $this->configureSetProperty($property, $propertyIndex, $value);
                 } else {
                     $this->configureLogError(
                         'Validation failed on property "' . $origProperty . '"'
@@ -113,12 +116,17 @@ trait Configurable
      * The return value is false, a string, or an object.
      * If the return value is false, the object is stored without further work.
      * If the return value is a string, it is treated as the name of a
-     * Configurable class via the configure() method.
+     * constructible class or a class that has a configure() method.
      * The returned object follows this form:
      *  {
      *      className (string|callable): The name of the class to be used for
      *          configuration or a callable that takes the current value and
      *          returns a class name.
+     *      construct (bool, optional): if set, a new className object will
+     *          be created and the value will be passed to the constructor.
+     *      constructUnpack (bool, optional): if set, a new className object
+     *          will be crated, the value must be an array, which will be
+     *          unpacked and passed to the constructor.
      *      keyIsMethod (bool, optional): If set, then the key will be treated
      *          as a method in the created object. The method should return a key.
      *      key (string|callable, optional): If key is a string, this is
@@ -159,6 +167,28 @@ trait Configurable
     {
         return true;
     }
+
+    protected function configureConstruct($property, $propertyIndex, $specs, $value)
+    {
+        if (!class_exists($specs->className)) {
+            $this->configureLogError("Class not found: {$specs->className}");
+            return;
+        }
+        try {
+            if ($specs->construct) {
+                $value = new $specs->className($value);
+            } elseif ($specs->constructUnpack) {
+                if (is_scalar($value)) {
+                    $value = [$value];
+                }
+                $value = new $specs->className(...$value);
+            }
+            $this->configureSetProperty($property, $propertyIndex, $value);
+        } catch (\Error $err) {
+            $this->configureLogError('Unable to construct: ' . $err->getMessage());
+        }
+    }
+
 
     public function configureGetClass($specs, $value)
     {
@@ -334,6 +364,26 @@ trait Configurable
     protected function configurePropertyMap($property)
     {
         return $property;
+    }
+
+    /**
+     * Set a property.
+     *
+     * @param string $property
+     * @param mixed $propertyIndex
+     * @param mixed $value
+     */
+    protected function configureSetProperty($property, $propertyIndex, $value)
+    {
+        if (is_object($value) && get_class($value) === 'stdClass') {
+            // Clone the stdClass so we can't corrupt the source data
+            $value = clone $value;
+        }
+        if ($propertyIndex === null) {
+            $this->$property = $value;
+        } else {
+            $this->$property[$propertyIndex] = $value;
+        }
     }
 
     /**

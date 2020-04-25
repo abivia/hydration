@@ -277,6 +277,24 @@ class. Contained classes must provide the `configure()` method, either via the
 or it can be a callable that takes the current property value as an argument.
 This allows the creation of data-specific object classes.
 
+If a property `foo` returns an array of `['className' => 'MyClass']` or just
+the string `MyClass` then Configurable will instantiate a new `MyClass` and
+pass the value to the `configure()` method.
+
+### construct (bool)
+`className` is the name of a class that will be instantiated by passing the
+ value to the class constructor.
+
+If a property `foo` returns an array of `['className' => 'DateInterval', 'construct' => true]`
+then Configurable will create a `new DateInterval($value)` and assign it to `foo`.
+
+### constructUnpack (bool)
+`className` is the name of a class that will be instantiated by passing the
+ unpacked value (which must be an array) to the class constructor.
+
+If a property `foo` returns an array of `['className' => 'MyClass', 'constructUnpack' => true]`
+then Configurable will create a `new MyClass(...$value)` and assign it to `foo`.
+
 ### key (string|callable)
 The `key` property is optional and tells Configurable to populate an array.
 
