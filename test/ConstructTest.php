@@ -49,6 +49,21 @@ class Constructable
     }
 }
 
+class NestedConstruct
+{
+    use \Abivia\Configurable\Configurable;
+
+    public $sub;
+
+    protected function configureClassMap($property, $value)
+    {
+        if ($property === 'sub') {
+            return 'ConfigConstruct';
+        }
+        return false;
+    }
+}
+
 class ConstructTest extends \PHPUnit\Framework\TestCase
 {
     public function testConstruct()
@@ -68,7 +83,7 @@ class ConstructTest extends \PHPUnit\Framework\TestCase
         $testObj = new ConfigConstruct();
         $testObj->configure($input);
         $errors = $testObj->configureGetErrors();
-        $this->assertEquals(1, count($errors));
+        $this->assertEquals(2, count($errors));
         $this->assertEquals(
             0,
             strpos(
@@ -86,14 +101,14 @@ class ConstructTest extends \PHPUnit\Framework\TestCase
         $testObj = new ConfigConstruct();
         $testObj->configure($input);
         $errors = $testObj->configureGetErrors();
-        $this->assertEquals(1, count($errors));
-        $this->assertEquals(
-            0,
+        $this->assertEquals(2, count($errors));
+        $this->assertEquals('Unable to configure property "badConstruct":', $errors[0]);
+        $this->assertTrue(
             strpos(
-                $errors[0],
+                $errors[1],
                 'Unable to construct: Too few arguments to function'
                 . ' Constructable::__construct(), 1 passed'
-            )
+            ) === 0
         );
     }
 
@@ -104,8 +119,32 @@ class ConstructTest extends \PHPUnit\Framework\TestCase
         $testObj = new ConfigConstruct();
         $testObj->configure($input);
         $this->assertEquals(
-            ['Class not found: Nonexistent'],
+            [
+                'Unable to configure property "nope":',
+                'Class not found: Nonexistent'
+            ],
             $testObj->configureGetErrors()
+        );
+    }
+
+    public function testNestedBadUnpack()
+    {
+        $sub = new StdClass();
+        $sub->badConstruct = [1];
+        $input = new stdClass;
+        $input->sub = $sub;
+        $testObj = new NestedConstruct();
+        $testObj->configure($input);
+        $errors = $testObj->configureGetErrors();
+        $this->assertEquals(3, count($errors));
+        $this->assertEquals('Unable to configure property "sub":', $errors[0]);
+        $this->assertEquals('Unable to configure property "badConstruct":', $errors[1]);
+        $this->assertTrue(
+            strpos(
+                $errors[2],
+                'Unable to construct: Too few arguments to function'
+                . ' Constructable::__construct(), 1 passed'
+            ) === 0
         );
     }
 

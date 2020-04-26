@@ -76,7 +76,7 @@ trait Configurable
                         is_object($specs)
                         && ($specs->construct || $specs->constructUnpack)
                     ) {
-                        $this->configureConstruct($property, $propertyIndex, $specs, $value);
+                        $log = $this->configureConstruct($property, $propertyIndex, $specs, $value);
                     } else {
                     // Instantiate and configure the property
                         $log = $this->configureInstance($specs, $property, $value, $subOptions);
@@ -170,9 +170,10 @@ trait Configurable
 
     protected function configureConstruct($property, $propertyIndex, $specs, $value)
     {
+        $errors = [];
         if (!class_exists($specs->className)) {
-            $this->configureLogError("Class not found: {$specs->className}");
-            return;
+            $errors[] = "Class not found: {$specs->className}";
+            return $errors;
         }
         try {
             if ($specs->construct) {
@@ -185,8 +186,9 @@ trait Configurable
             }
             $this->configureSetProperty($property, $propertyIndex, $value);
         } catch (\Error $err) {
-            $this->configureLogError('Unable to construct: ' . $err->getMessage());
+            $errors[] = 'Unable to construct: ' . $err->getMessage();
         }
+        return $errors;
     }
 
 
