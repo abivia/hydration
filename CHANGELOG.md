@@ -1,6 +1,10 @@
 Change log for Abivia\Configurable
 ====
 
+1.0.5
+---
+- Fix handling of nested errors when an object was initialized via constructor.
+
 1.0.4
 ---
 
