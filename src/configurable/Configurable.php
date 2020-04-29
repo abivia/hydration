@@ -81,19 +81,19 @@ trait Configurable
                     // Instantiate and configure the property
                         $log = $this->configureInstance($specs, $property, $value, $subOptions);
                     }
-                    if (!empty($log)) {
-                        array_unshift(
-                            $log, 'Unable to configure property "' . $origProperty . '":'
-                        );
-                        $this->configureLogError($log);
-                        $result = false;
-                    }
                 } elseif ($this->configureValidate($property, $value)) {
-                    $this->configureSetProperty($property, $propertyIndex, $value);
+                    $log = $this->configureSetProperty($property, $propertyIndex, $value);
                 } else {
                     $this->configureLogError(
                         'Validation failed on property "' . $origProperty . '"'
                     );
+                    $result = false;
+                }
+                if ($result && !empty($log)) {
+                    array_unshift(
+                        $log, 'Unable to configure property "' . $origProperty . '":'
+                    );
+                    $this->configureLogError($log);
                     $result = false;
                 }
             } elseif ($options['strict'] && !$ignored) {
@@ -168,8 +168,9 @@ trait Configurable
         return true;
     }
 
-    protected function configureConstruct($property, $propertyIndex, $specs, $value)
-    {
+    protected function configureConstruct(
+        $property, $propertyIndex, $specs, $value
+    ) {
         $errors = [];
         if (!class_exists($specs->className)) {
             $errors[] = "Class not found: {$specs->className}";
@@ -184,7 +185,9 @@ trait Configurable
                 }
                 $value = new $specs->className(...$value);
             }
-            $this->configureSetProperty($property, $propertyIndex, $value);
+            $errors = $this->configureSetProperty(
+                $property, $propertyIndex, $value
+            );
         } catch (\Error $err) {
             $errors[] = 'Unable to construct: ' . $err->getMessage();
         }
@@ -381,11 +384,17 @@ trait Configurable
             // Clone the stdClass so we can't corrupt the source data
             $value = clone $value;
         }
-        if ($propertyIndex === null) {
-            $this->$property = $value;
-        } else {
-            $this->$property[$propertyIndex] = $value;
+        $errors = [];
+        try {
+            if ($propertyIndex === null) {
+                $this->$property = $value;
+            } else {
+                $this->$property[$propertyIndex] = $value;
+            }
+        } catch (\Error $err) {
+            $errors[] = "Unable to set {$property}: " . $err->getMessage();
         }
+        return $errors;
     }
 
     /**
