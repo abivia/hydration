@@ -1,5 +1,6 @@
 <?php
 
+namespace Abivia\Configurable\Tests\Php74;
 
 class ConfigConstruct
 {
@@ -8,13 +9,13 @@ class ConfigConstruct
     /**
      * @var Constructable
      */
-    public $anObject;
+    public ?Constructable $anObject = null;
 
     /**
      *
      * @var DateInterval
      */
-    public $anInterval;
+    public ?\DateInterval $anInterval = null;
 
     public $badConstruct;
 
@@ -23,13 +24,13 @@ class ConfigConstruct
     protected function configureClassMap($property, $value)
     {
         if ($property === 'anObject') {
-            return ['className' => 'Constructable', 'constructUnpack' => true];
+            return ['className' => Constructable::class, 'constructUnpack' => true];
         }
         if ($property === 'anInterval') {
             return ['className' => 'DateInterval', 'construct' => true];
         }
         if ($property === 'badConstruct') {
-            return ['className' => 'Constructable', 'constructUnpack' => true];
+            return ['className' => Constructable::class, 'constructUnpack' => true];
         }
         if ($property === 'nope') {
             return ['className' => 'Nonexistent', 'construct' => true];
@@ -58,7 +59,7 @@ class NestedConstruct
     protected function configureClassMap($property, $value)
     {
         if ($property === 'sub') {
-            return 'ConfigConstruct';
+            return ConfigConstruct::class;
         }
         return false;
     }
@@ -68,17 +69,17 @@ class ConstructTest extends \PHPUnit\Framework\TestCase
 {
     public function testConstruct()
     {
-        $input = new StdClass();
+        $input = new \stdClass();
         $input->anInterval = 'P3M';
         $testObj = new ConfigConstruct();
         $testObj->configure($input);
-        $this->assertInstanceOf(DateInterval::class, $testObj->anInterval);
+        $this->assertInstanceOf(\DateInterval::class, $testObj->anInterval);
         $this->assertEquals(3, $testObj->anInterval->m);
     }
 
     public function testBadUnpack1()
     {
-        $input = new StdClass();
+        $input = new \stdClass();
         $input->badConstruct = 1;
         $testObj = new ConfigConstruct();
         $testObj->configure($input);
@@ -89,14 +90,14 @@ class ConstructTest extends \PHPUnit\Framework\TestCase
             strpos(
                 $errors[0],
                 'Unable to construct: Too few arguments to function'
-                . ' Constructable::__construct(), 1 passed'
+                . ' Abivia\Configurable\Tests\Php74\Constructable::__construct(), 1 passed'
             )
         );
     }
 
     public function testBadUnpack2()
     {
-        $input = new StdClass();
+        $input = new \stdClass();
         $input->badConstruct = [1];
         $testObj = new ConfigConstruct();
         $testObj->configure($input);
@@ -107,14 +108,14 @@ class ConstructTest extends \PHPUnit\Framework\TestCase
             strpos(
                 $errors[1],
                 'Unable to construct: Too few arguments to function'
-                . ' Constructable::__construct(), 1 passed'
+                . ' Abivia\Configurable\Tests\Php74\Constructable::__construct(), 1 passed'
             ) === 0
         );
     }
 
     public function testNoClass()
     {
-        $input = new StdClass();
+        $input = new \stdClass();
         $input->nope = 'P3M';
         $testObj = new ConfigConstruct();
         $testObj->configure($input);
@@ -129,9 +130,9 @@ class ConstructTest extends \PHPUnit\Framework\TestCase
 
     public function testNestedBadUnpack()
     {
-        $sub = new StdClass();
+        $sub = new \stdClass();
         $sub->badConstruct = [1];
-        $input = new stdClass;
+        $input = new \stdClass;
         $input->sub = $sub;
         $testObj = new NestedConstruct();
         $testObj->configure($input);
@@ -143,14 +144,15 @@ class ConstructTest extends \PHPUnit\Framework\TestCase
             strpos(
                 $errors[2],
                 'Unable to construct: Too few arguments to function'
-                . ' Constructable::__construct(), 1 passed'
+                . ' Abivia\Configurable\Tests\Php74\Constructable::__construct(),'
+                . ' 1 passed'
             ) === 0
         );
     }
 
     public function testConstructUnpack()
     {
-        $input = new StdClass();
+        $input = new \stdClass();
         $input->anObject = ['one', 'two'];
         $testObj = new ConfigConstruct();
         $testObj->configure($input);

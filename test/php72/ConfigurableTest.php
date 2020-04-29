@@ -1,8 +1,10 @@
 <?php
 
+namespace Abivia\Configurable\Tests\Php72;
+
 use Symfony\Component\Yaml\Yaml;
 
-class BadConfigException extends Exception
+class BadConfigException extends \Exception
 {
 }
 
@@ -54,10 +56,10 @@ class ConfigurableMain
             // badClass2 is set up below.
             'badClass3' => ['className' => ['not', 'callable']],
             // badClass4 is set up below.
-            'subAssoc' => ['className' => 'ConfigurableSub', 'key' => 'key'],
-            'subAssocDup' => ['className' => 'ConfigurableSub', 'key' => 'key', 'allowDups' => true],
-            'subAssocP' => ['className' => 'ConfigurableSub', 'key' => 'getKeyP', 'keyIsMethod' => true],
-            'subClass' => ['className' => 'ConfigurableSub'],
+            'subAssoc' => ['className' => ConfigurableSub::class, 'key' => 'key'],
+            'subAssocDup' => ['className' => ConfigurableSub::class, 'key' => 'key', 'allowDups' => true],
+            'subAssocP' => ['className' => ConfigurableSub::class, 'key' => 'getKeyP', 'keyIsMethod' => true],
+            'subClass' => ['className' => ConfigurableSub::class],
         ];
         $result = false;
         switch ($property) {
@@ -66,7 +68,7 @@ class ConfigurableMain
                 break;
             case 'badClass4':
                 // Test object in place of className
-                $result = new stdClass;
+                $result = new \stdClass;
                 $result->className = (object) ['totally' => 'invalid'];
                 break;
             case 'subAssoc':
@@ -74,16 +76,16 @@ class ConfigurableMain
                 $result = $classMap[$property];
                 break;
             case 'subCallable':
-                $result = new stdClass;
+                $result = new \stdClass;
                 $result->key = [$this, 'addToCallable'];
-                $result->className = 'ConfigurableSub';
+                $result->className = ConfigurableSub::class;
                 break;
             case 'subClass2':
                 // Test simple class name in a string
-                $result = 'ConfigurableSub';
+                $result = ConfigurableSub::class;
                 break;
             case 'subDynamic':
-                $result = new stdClass;
+                $result = new \stdClass;
                 $result->key = 'key';
                 $result->className = function ($value) {
                     if (is_array($value)) {
@@ -91,7 +93,8 @@ class ConfigurableMain
                     } else {
                         $ext = $value->type;
                     }
-                    return 'ConfigurableType' . ucfirst($ext);
+                    return 'Abivia\Configurable\Tests\Php72\ConfigurableType'
+                        . ucfirst($ext);
                 };
                 break;
             default:
@@ -128,7 +131,7 @@ class ConfigurableMain
                 if (!is_string($value)) {
                     continue;
                 }
-                $obj = new Stdclass;
+                $obj = new \stdClass;
                 $obj->subProp1 = $value;
                 $config->subClass[$key] = $obj;
             }
@@ -307,9 +310,9 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase
 	public function testConfigurableInstantiation()
     {
         $obj = new ConfigurableMain();
-		$this->assertInstanceOf('ConfigurableMain', $obj);
+		$this->assertInstanceOf(ConfigurableMain::class, $obj);
         $obj = new ConfigurableSub();
-		$this->assertInstanceOf('ConfigurableSub', $obj);
+		$this->assertInstanceOf(ConfigurableSub::class, $obj);
 	}
 
 	public function testSimpleValid()
@@ -349,7 +352,8 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase
             $this->assertEquals('uninitialized', $obj->prop1);
             $this->assertEquals(
                 [
-                    'prop1 has invalid value purple in ConfigurableMain',
+                    'prop1 has invalid value purple in'
+                    . ' Abivia\Configurable\Tests\Php72\ConfigurableMain',
                     'Validation failed on property "prop1"',
                 ],
                 $obj->configureGetErrors()
@@ -396,7 +400,8 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase
             $this->assertFalse($obj->configure($config, true));
             $this->assertEquals('uninitialized', $obj->prop1);
             $this->assertEquals(
-                ['Undefined property "undeclared" in class ConfigurableMain'],
+                ['Undefined property "undeclared" in class'
+                    . ' Abivia\Configurable\Tests\Php72\ConfigurableMain'],
                 $obj->configureGetErrors()
             );
         }
@@ -442,12 +447,16 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase
             $obj->prop1 = 'uninitialized';
             $success = null;
             try {
-                $obj->configure($config, 'BadConfigException');
+                $obj->configure($config, BadConfigException::class);
                 $this->assertEquals([], $obj->configureGetErrors());
                 $success = true;
             } catch (BadConfigException $ex) {
                 $success = false;
-                $this->assertEquals('Undefined property "undeclared" in class ConfigurableMain', $ex->getMessage());
+                $this->assertEquals(
+                    'Undefined property "undeclared" in class'
+                    . ' Abivia\Configurable\Tests\Php72\ConfigurableMain',
+                    $ex->getMessage()
+                );
             }
             $this->assertTrue($success === false);
         }
@@ -496,7 +505,8 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase
         $this->assertFalse($obj->configure($config, true));
         $this->assertEquals('uninitialized', $obj->notConfigurable);
         $this->assertEquals(
-            ['Undefined property "notConfigurable" in class ConfigurableSub'],
+            ['Undefined property "notConfigurable" in class'
+                . ' Abivia\Configurable\Tests\Php72\ConfigurableSub'],
             $obj->configureGetErrors()
         );
 	}
@@ -512,7 +522,8 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase
         $this->assertFalse($obj->configure($config, true));
         $this->assertEquals('uninitialized', $obj->doNotConfigure);
         $this->assertEquals(
-            ['Undefined property "doNotConfigure" in class ConfigurableMain'],
+            ['Undefined property "doNotConfigure" in class'
+                . ' Abivia\Configurable\Tests\Php72\ConfigurableMain'],
             $obj->configureGetErrors()
         );
 	}
@@ -528,7 +539,8 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase
         $this->assertFalse($obj->configure($config, true));
         $this->assertEquals('uninitialized', $obj->conflicted);
         $this->assertEquals(
-            ['Undefined property "conflicted" in class ConfigurableSub'],
+            ['Undefined property "conflicted" in class'
+                . ' Abivia\Configurable\Tests\Php72\ConfigurableSub'],
             $obj->configureGetErrors()
         );
 	}
@@ -544,7 +556,7 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase
             $obj->subClass = new ConfigurableSub();
             $obj->subClass->subProp1 = 'uninitialized';
             $this->assertTrue($obj->configure($config));
-            $this->assertInstanceOf('ConfigurableSub', $obj->subClass);
+            $this->assertInstanceOf(ConfigurableSub::class, $obj->subClass);
             $this->assertEquals('subprop', $obj->subClass->subProp1);
             $this->assertEquals([], $obj->configureGetErrors());
             // See if our custom option got passed in
@@ -566,7 +578,7 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase
                 $result,
                 $format . "\n" . implode("\n", $obj->configureGetErrors())
             );
-            $this->assertInstanceOf('ConfigurableSub', $obj->subClass);
+            $this->assertInstanceOf(ConfigurableSub::class, $obj->subClass);
             $this->assertEquals('subprop', $obj->subClass->subProp1);
             $this->assertEquals([], $obj->configureGetErrors());
         }
@@ -578,11 +590,12 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase
         $obj = new ConfigurableMain();
         $obj->prop1 = 'uninitialized';
         $this->assertFalse($obj->configure($config, true));
-        $this->assertInstanceOf('ConfigurableSub', $obj->subClass);
+        $this->assertInstanceOf(ConfigurableSub::class, $obj->subClass);
         $this->assertEquals(
             [
                 'Unable to configure property "subClass":',
-                'Undefined property "badprop" in class ConfigurableSub',
+                'Undefined property "badprop" in class'
+                . ' Abivia\Configurable\Tests\Php72\ConfigurableSub',
             ],
             $obj->configureGetErrors()
         );
@@ -598,7 +611,7 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase
             $obj = new ConfigurableMain();
             $obj->prop1 = 'uninitialized';
             $this->assertTrue($obj->configure($config));
-            $this->assertInstanceOf('ConfigurableSub', $obj->subClass2);
+            $this->assertInstanceOf(ConfigurableSub::class, $obj->subClass2);
             $this->assertEquals('subprop', $obj->subClass2->subProp1);
             $this->assertEquals([], $obj->configureGetErrors());
         }
@@ -613,7 +626,7 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase
             $this->assertTrue($obj->configure($config), $format);
             $this->assertIsArray($obj->subClass, $format);
             $this->assertEquals(2, count($obj->subClass), $format);
-            $this->assertInstanceOf('ConfigurableSub', $obj->subClass[0], $format);
+            $this->assertInstanceOf(ConfigurableSub::class, $obj->subClass[0], $format);
             $this->assertEquals('e0', $obj->subClass[0]->subProp1, $format);
             $this->assertEquals('e1', $obj->subClass[1]->subProp1, $format);
             $this->assertEquals([], $obj->configureGetErrors(), $format);
@@ -633,7 +646,7 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase
             $this->assertIsArray($obj->subAssoc);
             $this->assertEquals(2, count($obj->subAssoc));
             $this->assertTrue(isset($obj->subAssoc['item0']));
-            $this->assertInstanceOf('ConfigurableSub', $obj->subAssoc['item0']);
+            $this->assertInstanceOf(ConfigurableSub::class, $obj->subAssoc['item0']);
             $this->assertEquals('e0', $obj->subAssoc['item0']->subProp1);
             $this->assertEquals('e1', $obj->subAssoc['item1']->subProp1);
             $this->assertEquals([], $obj->configureGetErrors());
@@ -653,7 +666,7 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase
             $this->assertIsArray($obj->subAssoc);
             $this->assertEquals(1, count($obj->subAssoc));
             $this->assertTrue(isset($obj->subAssoc['item0']));
-            $this->assertInstanceOf('ConfigurableSub', $obj->subAssoc['item0']);
+            $this->assertInstanceOf(ConfigurableSub::class, $obj->subAssoc['item0']);
             $this->assertEquals('e0', $obj->subAssoc['item0']->subProp1);
             $this->assertEquals([], $obj->configureGetErrors());
         }
@@ -672,7 +685,7 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase
             $this->assertIsArray($obj->subAssocDup);
             $this->assertEquals(1, count($obj->subAssocDup));
             $this->assertTrue(isset($obj->subAssocDup['item0']));
-            $this->assertInstanceOf('ConfigurableSub', $obj->subAssocDup['item0']);
+            $this->assertInstanceOf(ConfigurableSub::class, $obj->subAssocDup['item0']);
             $this->assertEquals('e1', $obj->subAssocDup['item0']->subProp1);
             $this->assertEquals(
                 [],
@@ -694,12 +707,13 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase
             $this->assertIsArray($obj->subAssoc);
             $this->assertEquals(1, count($obj->subAssoc));
             $this->assertTrue(isset($obj->subAssoc['item0']));
-            $this->assertInstanceOf('ConfigurableSub', $obj->subAssoc['item0']);
+            $this->assertInstanceOf(ConfigurableSub::class, $obj->subAssoc['item0']);
             $this->assertEquals('e0', $obj->subAssoc['item0']->subProp1);
             $this->assertEquals(
                 [
                     'Unable to configure property "subAssoc":',
-                    'Duplicate key "item0" configuring "subAssoc" in class ConfigurableMain',
+                    'Duplicate key "item0" configuring "subAssoc" in class'
+                    . ' Abivia\Configurable\Tests\Php72\ConfigurableMain',
                 ],
                 $obj->configureGetErrors()
             );
@@ -720,7 +734,7 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase
             $this->assertIsArray($obj->subAssocP);
             $this->assertEquals(2, count($obj->subAssocP));
             $this->assertTrue(isset($obj->subAssocP['item0']));
-            $this->assertInstanceOf('ConfigurableSub', $obj->subAssocP['item0']);
+            $this->assertInstanceOf(ConfigurableSub::class, $obj->subAssocP['item0']);
             $this->assertEquals('e0', $obj->subAssocP['item0']->subProp1);
             $this->assertEquals('e1', $obj->subAssocP['item1']->subProp1);
             $this->assertEquals([], $obj->configureGetErrors());
@@ -750,12 +764,13 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase
         $this->assertFalse($obj->configure($config, true));
         $this->assertIsArray($obj->subClass);
         $this->assertEquals(2, count($obj->subClass));
-        $this->assertInstanceOf('ConfigurableSub', $obj->subClass[0]);
+        $this->assertInstanceOf(ConfigurableSub::class, $obj->subClass[0]);
         $this->assertEquals('e0', $obj->subClass[0]->subProp1);
         $this->assertEquals(
             [
                 'Unable to configure property "subClass":',
-                'Undefined property "badprop" in class ConfigurableSub',
+                'Undefined property "badprop" in class'
+                . ' Abivia\Configurable\Tests\Php72\ConfigurableSub',
             ],
             $obj->configureGetErrors()
         );
@@ -773,7 +788,7 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase
             $this->assertTrue($obj->configure($config), $format);
             $this->assertIsArray($obj->subClass, $format);
             $this->assertEquals(3, count($obj->subClass), $format);
-            $this->assertInstanceOf('ConfigurableSub', $obj->subClass[0], $format);
+            $this->assertInstanceOf(ConfigurableSub::class, $obj->subClass[0], $format);
             $this->assertEquals('e0', $obj->subClass[0]->subProp1, $format);
             $this->assertEquals('e1', $obj->subClass[1]->subProp1, $format);
             $this->assertEquals('e2', $obj->subClass[2]->subProp1, $format);
@@ -792,7 +807,8 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase
         $this->assertEquals(
             [
                 'Unable to configure property "badClass1":',
-                'Undefined class "ThisClassDoesNotExist" configuring "badClass1" in class ConfigurableMain'
+                'Undefined class "ThisClassDoesNotExist" configuring "badClass1" in class'
+                . ' Abivia\Configurable\Tests\Php72\ConfigurableMain'
             ],
             $obj->configureGetErrors()
         );
@@ -809,7 +825,8 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase
         $this->assertEquals(
             [
                 'Unable to configure property "badClass2":',
-                'Invalid class specification configuring "badClass2" in class ConfigurableMain'
+                'Invalid class specification configuring "badClass2" in class'
+                . ' Abivia\Configurable\Tests\Php72\ConfigurableMain'
             ],
             $obj->configureGetErrors()
         );
@@ -826,7 +843,8 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase
         $this->assertEquals(
             [
                 'Unable to configure property "badClass3":',
-                'Bad callable [not, callable] configuring "badClass3" in class ConfigurableMain'
+                'Bad callable [not, callable] configuring "badClass3" in class'
+                . ' Abivia\Configurable\Tests\Php72\ConfigurableMain'
             ],
             $obj->configureGetErrors()
         );
@@ -843,7 +861,8 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase
         $this->assertEquals(
             [
                 'Unable to configure property "badClass4":',
-                'Unexpected "stdClass" Object configuring "badClass4" in class ConfigurableMain'
+                'Unexpected "stdClass" Object configuring "badClass4" in class'
+                . ' Abivia\Configurable\Tests\Php72\ConfigurableMain'
             ],
             $obj->configureGetErrors()
         );
@@ -856,7 +875,7 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase
         $this->assertTrue($obj->configure($config));
         $this->assertIsArray($obj->subCallable);
         $this->assertEquals(2, count($obj->subCallable));
-        $this->assertInstanceOf('ConfigurableSub', $obj->subCallable[0]);
+        $this->assertInstanceOf(ConfigurableSub::class, $obj->subCallable[0]);
         $this->assertEquals('e0', $obj->subCallable[0]->subProp1);
         $this->assertEquals('e1', $obj->subCallable[1]->subProp1);
         $this->assertEquals([], $obj->configureGetErrors());
@@ -875,9 +894,9 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase
             $this->assertIsArray($obj->subDynamic);
             $this->assertEquals(2, count($obj->subDynamic));
             $this->assertTrue(isset($obj->subDynamic['item0']));
-            $this->assertInstanceOf('ConfigurableTypeA', $obj->subDynamic['item0']);
+            $this->assertInstanceOf(ConfigurableTypeA::class, $obj->subDynamic['item0']);
             $this->assertEquals('e0', $obj->subDynamic['item0']->propA);
-            $this->assertInstanceOf('ConfigurableTypeB', $obj->subDynamic['item1']);
+            $this->assertInstanceOf(ConfigurableTypeB::class, $obj->subDynamic['item1']);
             $this->assertEquals('e1', $obj->subDynamic['item1']->propB);
             $this->assertEquals([], $obj->configureGetErrors());
         }

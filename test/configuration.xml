@@ -2,7 +2,8 @@
 <phpunit colors="true" bootstrap="../vendor/autoload.php">
     <testsuites>
         <testsuite name="abivia/configurable">
-            <directory>./</directory>
+            <directory>./php72</directory>
+            <directory phpVersion="7.4.0">./php74</directory>
         </testsuite>
     </testsuites>
     <filter>
