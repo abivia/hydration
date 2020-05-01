@@ -84,12 +84,12 @@ Loading can be either fault-tolerant or strict. Strict validation can either fai
 Installation
 ----
 
-Old School: Configurable has no dependencies, so you can just include it and use it.
+```composer require abivia/configurable```
 
-Composer: require abivia/configurable
+Configurable uses the Symphony YAML parser.
 
 
-Basic Usage
+Basic Use
 ----
 
 - Implement `configureClassMap()` for the top level class and any properties that map to your classes.
@@ -113,8 +113,47 @@ echo $obj->userName . ', ' . $obj->password;
 Output:
 admin, insecure
 
+Construct an associative array
+---
 
-Advanced Usage
+Have an array of objects with a property that you'd like to extract for use as
+an array key? No problem.
+
+```php
+class SocialMedia
+{
+    public array $list;
+
+    protected function configureClassMap($property, $value)
+    {
+        if ($property === 'list') {
+            return ['className' => 'stdClass', 'key' => 'code'];
+        }
+        return false;
+    }
+}
+
+$json = '{"list":[
+    {"code": "fb", "name": "Facebook"},
+    {"code": "t", "name": "Twitter"},
+    {"code": "ig", "name": "Instagram"}
+]}
+';
+
+$hydrate = new SocialMedia();
+$hydrate->configure(json_decode($json));
+echo implode(', ', array_keys($hydrate->list) "\n";
+echo $hydrate->list['ig']->name;
+```
+
+Will output
+
+```
+fb, t, ig
+Instagram
+```
+
+Advanced Use
 ---
 
 - If you need to map properties, implement `configurePropertyMap()` where needed.
@@ -264,8 +303,9 @@ Contained Classes
 ---
 The real power of Configurable is through `configureClassMap()` which can be
 used to instantiate and configure classes that are contained in the current
-class. Contained classes must provide the `configure()` method, either via the
-`Configurable` trait or by providing their own method.
+class. Contained classes must either be `stdClass` or provide the
+ `configure()` method, either via the `Configurable` trait or by providing
+their own method.
 
 `configureClassMap()` takes the name and value of a property as arguments and returns:
 

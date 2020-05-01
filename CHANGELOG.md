@@ -1,6 +1,10 @@
 Change log for Abivia\Configurable
 ====
 
+1.0.7
+---
+- Make it easier to create associative arrays with untyped (stdClass) elements.
+
 1.0.6
 ---
 - Trap type errors when doing a property assignment.

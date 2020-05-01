@@ -78,7 +78,7 @@ trait Configurable
                     ) {
                         $log = $this->configureConstruct($property, $propertyIndex, $specs, $value);
                     } else {
-                    // Instantiate and configure the property
+                        // Instantiate and configure the property
                         $log = $this->configureInstance($specs, $property, $value, $subOptions);
                     }
                 } elseif ($this->configureValidate($property, $value)) {
@@ -263,9 +263,13 @@ trait Configurable
                 if (!$goodClass) {
                     break;
                 }
-                $obj = new $ourClass;
-                if (!$obj->configure($element, $options)) {
-                    $result = $obj->configureGetErrors();
+                if ($ourClass === 'stdClass') {
+                    $obj = clone $element;
+                } else {
+                    $obj = new $ourClass;
+                    if (!$obj->configure($element, $options)) {
+                        $result = $obj->configureGetErrors();
+                    }
                 }
                 if (!isset($specs->key) || $specs->key == '') {
                     $this->$property[] = $obj;
