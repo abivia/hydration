@@ -18,6 +18,18 @@ class ConfigCastArray
         }
         return false;
     }
+
+    protected function configureValidate($property, &$value)
+    {
+        if ($property === 'simple') {
+            foreach ($value as $element) {
+                 if (substr($element, 0, 7) !== 'this is') {
+                    return false;
+                 }
+            }
+        }
+        return true;
+    }
 }
 
 /**
@@ -40,6 +52,15 @@ class CastArrayTest extends \PHPUnit\Framework\TestCase
         $this->assertEquals('this is a', $testObj->simple['a']);
         $this->assertTrue(isset($testObj->simple['*']));
         $this->assertEquals('this is *', $testObj->simple['*']);
+    }
+
+    public function testConfigureBad()
+    {
+        $json = '{"simple": { "a": "this is a", "*": "this no good"}}';
+
+        $testObj = new ConfigCastArray();
+        $result = $testObj->configure(json_decode($json));
+        $this->assertFalse($result);
     }
 
 }

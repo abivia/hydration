@@ -1,6 +1,10 @@
 Change log for Abivia\Configurable
 ====
 
+1.0.9
+---
+- Bugfix: Failed to call validation on array-cast and simple constructed properties.
+
 1.0.8
 ---
 - Add "array" as a recognized className, allowing selective array conversion.

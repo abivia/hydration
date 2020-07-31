@@ -86,6 +86,7 @@ trait Configurable
         $origProperty, $property, $propertyIndex, $value, $options
     ) {
         $result = true;
+        $valid = true;
         if (is_object($this->$property) && method_exists($this->$property, 'configure')) {
             // The property is instantiated and Configurable, pass the value along.
             if (!$this->$property->configure($value, $options)) {
@@ -100,29 +101,36 @@ trait Configurable
             if (is_array($specs) && isset($specs['className'])) {
                 $specs = (object) $specs;
             }
-            $assigned = false;
+            $assignable = false;
             if (is_object($specs)) {
                 $specs->construct = $specs->construct ?? false;
                 $specs->constructUnpack = $specs->constructUnpack ?? false;
                 if (
                     ($specs->construct || $specs->constructUnpack)
                 ) {
-                    $log = $this->configureConstruct($property, $propertyIndex, $specs, $value);
-                    $assigned = true;
-                } elseif($specs->className === 'array') {
-                    $log = $this->configureSetProperty(
-                        $property, $propertyIndex, (array) $value
-                    );
-                    $assigned = true;
+                    $assignable = true;
+                    if (($valid = $this->configureValidate($property, $value))) {
+                        $log = $this->configureConstruct(
+                            $property, $propertyIndex, $specs, $value
+                        );
+                    }
+                } elseif ($specs->className === 'array') {
+                    $assignable = true;
+                    if (($valid = $this->configureValidate($property, $value))) {
+                        $log = $this->configureSetProperty(
+                            $property, $propertyIndex, (array) $value
+                        );
+                    }
                 }
             }
-            if (!$assigned) {
+            if (!$assignable) {
                 // Instantiate and configure the property
                 $log = $this->configureInstance($specs, $property, $value, $options);
             }
-        } elseif ($this->configureValidate($property, $value)) {
+        } elseif (($valid = $this->configureValidate($property, $value))) {
             $log = $this->configureSetProperty($property, $propertyIndex, $value);
-        } else {
+        }
+        if (!$valid) {
             $this->configureLogError(
                 'Validation failed on property "' . $origProperty . '"'
             );

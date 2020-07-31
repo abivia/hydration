@@ -37,6 +37,19 @@ class ConfigConstruct
         }
         return false;
     }
+
+    protected function configureValidate($property, &$value)
+    {
+        if ($property === 'anObject') {
+            foreach ($value as $element) {
+                if (strlen($element) > 3) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
 }
 
 class Constructable
@@ -110,6 +123,16 @@ class ConstructTest extends \PHPUnit\Framework\TestCase
                 . ' Abivia\Configurable\Tests\Php72\Constructable::__construct(), 1 passed'
             ) === 0
         );
+    }
+
+    public function testBadUnpack3()
+    {
+        // Anobject instances must have string lengths <= 3.
+        $input = new \stdClass();
+        $input->anObject = ['one', 'toomany'];
+        $testObj = new ConfigConstruct();
+        $result = $testObj->configure($input);
+        $this->assertFalse($result);
     }
 
     public function testNoClass()
