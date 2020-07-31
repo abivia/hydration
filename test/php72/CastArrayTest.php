@@ -7,6 +7,12 @@ class ConfigCastArray
     use \Abivia\Configurable\Configurable;
 
     /**
+     *
+     * @var mixed Always validates.
+     */
+    public $allGood;
+
+    /**
      * @var array
      */
     public $simple = [];
@@ -57,6 +63,18 @@ class CastArrayTest extends \PHPUnit\Framework\TestCase
     public function testConfigureBad()
     {
         $json = '{"simple": { "a": "this is a", "*": "this no good"}}';
+
+        $testObj = new ConfigCastArray();
+        $result = $testObj->configure(json_decode($json));
+        $this->assertFalse($result);
+    }
+
+    /**
+     * Make sure a valid property doesn't mask an invalid one
+     */
+    public function testConfigureBad2()
+    {
+        $json = '{"simple": { "a": "this is a", "*": "this no good"}, "allgood":1}';
 
         $testObj = new ConfigCastArray();
         $result = $testObj->configure(json_decode($json));

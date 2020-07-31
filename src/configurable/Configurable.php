@@ -54,7 +54,9 @@ trait Configurable
                 $allowed = false;
             }
             if ($allowed && !$blocked && !$ignored) {
-                $result = $this->configureAssign($origProperty, $property, $propertyIndex, $value, $subOptions);
+                $result = $result && $this->configureAssign(
+                    $origProperty, $property, $propertyIndex, $value, $subOptions
+                );
             } elseif ($options['strict'] && !$ignored) {
                 $message = 'Undefined property "' . $property . '" in class ' . __CLASS__;
                 $this->configureLogError($message);

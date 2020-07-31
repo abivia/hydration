@@ -1,6 +1,10 @@
 Change log for Abivia\Configurable
 ====
 
+1.0.10
+---
+- Bugfix: Fix in v1.0.9 did not respect prior validation failures.
+
 1.0.9
 ---
 - Bugfix: Failed to call validation on array-cast and simple constructed properties.
