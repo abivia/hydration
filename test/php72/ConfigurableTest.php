@@ -560,7 +560,9 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase
             $this->assertEquals('subprop', $obj->subClass->subProp1);
             $this->assertEquals([], $obj->configureGetErrors());
             // See if our custom option got passed in
-            $this->assertEquals('appOptions', $obj->subClass->checkConfigurableOption('_custom'));
+            $this->assertEquals(
+                'appOptions', $obj->subClass->checkConfigurableOption('_custom')
+            );
         }
 	}
 

@@ -20,6 +20,9 @@ class ConfigKeyOnly
     }
 }
 
+/**
+ * Test creating an associative array of Stdclass objects.
+ */
 class KeyOnlyTest extends \PHPUnit\Framework\TestCase
 {
     public function testConstruct()

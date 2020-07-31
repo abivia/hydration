@@ -1,6 +1,10 @@
 Change log for Abivia\Configurable
 ====
 
+1.0.8
+---
+- Add "array" as a recognized className, allowing selective array conversion.
+
 1.0.7
 ---
 - Make it easier to create associative arrays with untyped (stdClass) elements.

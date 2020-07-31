@@ -113,7 +113,51 @@ echo $obj->userName . ', ' . $obj->password;
 Output:
 admin, insecure
 
-Construct an associative array
+Selectively Convert Objects to Arrays
+---
+
+The ```json_decode()``` method has an option to force conversion of objects
+to arrays, but there is no way to get selective conversion. Configurable can
+do this via a class map to 'array'. See ```CastArrayTest.php```
+for a working example.
+
+```php
+class ConfigCastArray
+{
+    use \Abivia\Configurable\Configurable;
+
+    /**
+     * @var array
+     */
+    public $simple = [];
+
+    protected function configureClassMap($property, $value)
+    {
+        if ($property === 'simple') {
+            return ['className' => 'array'];
+        }
+        return false;
+    }
+}
+$json = '{"simple": { "a": "this is a", "*": "this is *"}}';
+
+$hydrate = new ConfigCastArray();
+$hydrate->configure(json_decode($json));
+print_r($hydrate);
+```
+Will give this result
+
+```
+(
+    [simple] => Array
+        (
+            [a] => this is a
+            [*] => this is *
+        )
+)```
+
+
+Associative arrays using a property as the key
 ---
 
 Have an array of objects with a property that you'd like to extract for use as
@@ -360,8 +404,14 @@ Any problems encountered during configuration are logged. An array of errors can
 retrieved by calling the `configureGetErrors()` method. The error log is cleared by an
 application call to `configure()` unless the newLog option is set to false.
 
-Examples
+Unit Tests and Examples
 ========
-The unit tests contain a number of examples that should be illustrative. More detailed
+Unit tests are organized by PHP support level. Tests that use features of PHP
+that are not available in PHP 7.2 are maintained in separate directories.
+PHPUnit will automatically run tests up to your current PHP version but
+not above.
+
+The unit tests also contain a number of examples that should be helpful in
+understanding how Configurable works. More detailed
 examples with sample output can be found at
 https://gitlab.com/abivia/configurable-examples

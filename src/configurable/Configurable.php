@@ -54,48 +54,7 @@ trait Configurable
                 $allowed = false;
             }
             if ($allowed && !$blocked && !$ignored) {
-                if (is_object($this->$property) && method_exists($this->$property, 'configure')) {
-                    // The property is instantiated and Configurable, pass the value along.
-                    if (!$this->$property->configure($value, $subOptions)) {
-                        $this->configureLogError($this->$property->configureGetErrors());
-                        $result = false;
-                    }
-                } elseif (($specs = $this->configureClassMap($property, $value))) {
-                    // Make sure we got an object
-                    if (is_string($specs)) {
-                        $specs = (object) ['className' => $specs];
-                    }
-                    if (is_array($specs) && isset($specs['className'])) {
-                        $specs = (object) $specs;
-                    }
-                    if (is_object($specs)) {
-                        $specs->construct = $specs->construct ?? false;
-                        $specs->constructUnpack = $specs->constructUnpack ?? false;
-                    }
-                    if (
-                        is_object($specs)
-                        && ($specs->construct || $specs->constructUnpack)
-                    ) {
-                        $log = $this->configureConstruct($property, $propertyIndex, $specs, $value);
-                    } else {
-                        // Instantiate and configure the property
-                        $log = $this->configureInstance($specs, $property, $value, $subOptions);
-                    }
-                } elseif ($this->configureValidate($property, $value)) {
-                    $log = $this->configureSetProperty($property, $propertyIndex, $value);
-                } else {
-                    $this->configureLogError(
-                        'Validation failed on property "' . $origProperty . '"'
-                    );
-                    $result = false;
-                }
-                if ($result && !empty($log)) {
-                    array_unshift(
-                        $log, 'Unable to configure property "' . $origProperty . '":'
-                    );
-                    $this->configureLogError($log);
-                    $result = false;
-                }
+                $result = $this->configureAssign($origProperty, $property, $propertyIndex, $value, $subOptions);
             } elseif ($options['strict'] && !$ignored) {
                 $message = 'Undefined property "' . $property . '" in class ' . __CLASS__;
                 $this->configureLogError($message);
@@ -106,6 +65,74 @@ trait Configurable
             }
         }
         if (!$this->configureComplete()) {
+            $result = false;
+        }
+        return $result;
+    }
+
+    /**
+     * Assign a property.
+     *
+     * @param type $origProperty The original property name.
+     * @param string $property The mapped property name.
+     * @param mixed $propertyIndex If the property is an array, this is the
+     *  index of the value to be set.
+     * @param mixed $value
+     * @param array $options
+     *
+     * @return boolean
+     */
+    private function configureAssign(
+        $origProperty, $property, $propertyIndex, $value, $options
+    ) {
+        $result = true;
+        if (is_object($this->$property) && method_exists($this->$property, 'configure')) {
+            // The property is instantiated and Configurable, pass the value along.
+            if (!$this->$property->configure($value, $options)) {
+                $this->configureLogError($this->$property->configureGetErrors());
+                $result = false;
+            }
+        } elseif (($specs = $this->configureClassMap($property, $value))) {
+            // Make sure we got an object
+            if (is_string($specs)) {
+                $specs = (object) ['className' => $specs];
+            }
+            if (is_array($specs) && isset($specs['className'])) {
+                $specs = (object) $specs;
+            }
+            $assigned = false;
+            if (is_object($specs)) {
+                $specs->construct = $specs->construct ?? false;
+                $specs->constructUnpack = $specs->constructUnpack ?? false;
+                if (
+                    ($specs->construct || $specs->constructUnpack)
+                ) {
+                    $log = $this->configureConstruct($property, $propertyIndex, $specs, $value);
+                    $assigned = true;
+                } elseif($specs->className === 'array') {
+                    $log = $this->configureSetProperty(
+                        $property, $propertyIndex, (array) $value
+                    );
+                    $assigned = true;
+                }
+            }
+            if (!$assigned) {
+                // Instantiate and configure the property
+                $log = $this->configureInstance($specs, $property, $value, $options);
+            }
+        } elseif ($this->configureValidate($property, $value)) {
+            $log = $this->configureSetProperty($property, $propertyIndex, $value);
+        } else {
+            $this->configureLogError(
+                'Validation failed on property "' . $origProperty . '"'
+            );
+            $result = false;
+        }
+        if ($result && !empty($log)) {
+            array_unshift(
+                $log, 'Unable to configure property "' . $origProperty . '":'
+            );
+            $this->configureLogError($log);
             $result = false;
         }
         return $result;
@@ -168,6 +195,16 @@ trait Configurable
         return true;
     }
 
+    /**
+     *
+     * @param string $property The property name.
+     * @param mixed $propertyIndex If the property is an array, this is the
+     * index of the value to be set.
+     * @param mixed $specs Object specifications from configureClassMap.
+     * @param type $value
+     *
+     * @return array
+     */
     protected function configureConstruct(
         $property, $propertyIndex, $specs, $value
     ) {
@@ -378,9 +415,10 @@ trait Configurable
     /**
      * Set a property.
      *
-     * @param string $property
-     * @param mixed $propertyIndex
-     * @param mixed $value
+     * @param string $property The property name.
+     * @param mixed $propertyIndex If the property is an array, this is the
+     * index of the value to be set.
+     * @param mixed $value The value to be assigned to the property/index.
      */
     protected function configureSetProperty($property, $propertyIndex, $value)
     {
