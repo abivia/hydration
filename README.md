@@ -7,9 +7,9 @@ data structures from JSON or YAML sources. If your application
 - has configurations with several levels of nesting,
 - isn't validating user editable data in configuration files,
 - is spending a lot of effort reading from the stdClass objects created by
-```json_decode()``` or ```yaml_parse()``` to convert them into your
+by `json_decode()` or `yaml_parse()` to convert them into your
 application's class structures, or
-- is just using poorly typed, IDE unfriendly ```stdClass``` objects for
+- is just using poorly typed, IDE unfriendly `stdClass` objects for
 configuration
 
 then Configurable is here to help.
@@ -136,9 +136,9 @@ admin, insecure
 Selectively Convert Objects to Arrays
 ---
 
-The ```json_decode()``` method has an option to force conversion of objects
+The `json_decode()` method has an option to force conversion of objects
 to arrays, but there is no way to get selective conversion. Configurable can
-do this via a class map to 'array'. See ```CastArrayTest.php```
+do this via a class map to 'array'. See `CastArrayTest.php`
 for a working example.
 
 ```php
