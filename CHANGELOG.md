@@ -1,6 +1,10 @@
 Change log for Abivia\Configurable
 ====
 
+1.0.11
+---
+- Produce a reasonable error when an unexpected scalar is encountered.
+
 1.0.10
 ---
 - Bugfix: Fix in v1.0.9 did not respect prior validation failures.

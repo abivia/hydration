@@ -247,6 +247,7 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase
 {
 
     static $configSource = [
+        'testBadScalar' => '"invalid"',
         'testNestedDoesNotCorruptSource' => '{"genericForSubConfiguration":{"subClass":[{"subProp1":"e0"},{"subProp1":"e1"}]}}',
         'testPropertyMapping' => '{"class":"purple"}',
         'testPropertyMappingArray' => '{"array1":"one", "array5":"five"}',
@@ -313,6 +314,22 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase
 		$this->assertInstanceOf(ConfigurableMain::class, $obj);
         $obj = new ConfigurableSub();
 		$this->assertInstanceOf(ConfigurableSub::class, $obj);
+	}
+
+	public function testBadScalar()
+    {
+        foreach (['json', 'yaml'] as $format) {
+            $config = self::getConfig(__FUNCTION__, $format);
+            $obj = new ConfigurableMain();
+            $this->assertFalse($obj->configure($config));
+            $this->assertEquals(
+                [
+                    'Unexpected scalar value in'
+                    . ' Abivia\Configurable\Tests\Php72\ConfigurableMain',
+                ],
+                $obj->configureGetErrors()
+            );
+        }
 	}
 
 	public function testSimpleValid()

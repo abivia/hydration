@@ -35,10 +35,10 @@ trait Configurable
         $this->configureInitialize($config);
         $subOptions = array_merge($this->configureOptions, ['newlog' => false, 'parent' => &$this]);
         $result = true;
-        // Need a better version of this...
-//        if (!is_array($config) && !is_object($config)) {
-//            throw new \LogicException('Trying to iterate in ' . __CLASS__ . ' on ' . print_r($config, true));
-//        }
+        if (!is_array($config) && !is_object($config)) {
+            $this->configureErrors[] = 'Unexpected scalar value in ' . self::class;
+            return false;
+        }
         foreach ($config as $origProperty => $value) {
             $property = $this->configurePropertyMap($origProperty);
             if (is_array($property)) {
