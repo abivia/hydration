@@ -12,40 +12,58 @@ trait Configurable
 
     /**
      * Copy configuration data to object properties.
-     * @param object $config Object from decoding a configuration file (typically from JSON).
+     *
+     * @param object $config Object from decoding a configuration file
+     *              (typically from JSON or YAML).
      * @param mixed $options Strict error handling method or option array.
-     * @return bool True if all fields passed validation; and if strict, are defined class properties.
-     * @throws mixed
+     *
+     * @return bool True if all fields passed validation; if in strict mode
+     *              true when all fields are defined class properties.
+     *
+     * @throws Exception
      */
     public function configure($config, $options = false)
     {
-        // Map the old strict argument into the options array.
+        // Map a scalar strict argument into the options array for backward
+        // compatibility.
         if (!is_array($options)) {
             $options = ['strict' => $options];
         }
-        // Default strict if not set
+
+        // Default strict unless set
         if (!isset($options['strict'])) {
             $options['strict'] = false;
         }
-        // If newlog is missing or set true, reset the log, then pass false down to callees.
+
+        // If newlog is missing or set true, reset the log, then pass false
+        // down to callees.
         if (!isset($options['newlog']) || $options['newlog'] == true) {
             $this->configureErrors = [];
         }
         $this->configureOptions = $options;
         $this->configureInitialize($config);
-        $subOptions = array_merge($this->configureOptions, ['newlog' => false, 'parent' => &$this]);
+        $subOptions = array_merge(
+            $this->configureOptions, ['newlog' => false, 'parent' => &$this]
+        );
         $result = true;
+
+        // We should never see a scalar here.
         if (!is_array($config) && !is_object($config)) {
             $this->configureErrors[] = 'Unexpected scalar value in ' . self::class;
             return false;
         }
+
         foreach ($config as $origProperty => $value) {
+
+            // Check to see if the property maps to a different property name
+            // or propertyName[index] in the class.
             $property = $this->configurePropertyMap($origProperty);
             if (is_array($property)) {
                 list($property, $propertyIndex) = $property;
             } else {
                 $propertyIndex = null;
             }
+
             // Check for allowed/blocked/declared properties, block takes precedence.
             $blocked = $this->configurePropertyBlock($property);
             $ignored = $this->configurePropertyIgnore($property);
@@ -53,6 +71,8 @@ trait Configurable
             if (!property_exists($this, $property)) {
                 $allowed = false;
             }
+
+            // Assign the value to the property.
             if ($allowed && !$blocked && !$ignored) {
                 $result = $result && $this->configureAssign(
                     $origProperty, $property, $propertyIndex, $value, $subOptions
@@ -66,9 +86,12 @@ trait Configurable
                 $result = false;
             }
         }
+
+        // Run the post-configuration process
         if (!$this->configureComplete()) {
             $result = false;
         }
+
         return $result;
     }
 
@@ -89,6 +112,7 @@ trait Configurable
     ) {
         $result = true;
         $valid = true;
+
         if (is_object($this->$property) && method_exists($this->$property, 'configure')) {
             // The property is instantiated and Configurable, pass the value along.
             if (!$this->$property->configure($value, $options)) {
@@ -96,7 +120,8 @@ trait Configurable
                 $result = false;
             }
         } elseif (($specs = $this->configureClassMap($property, $value))) {
-            // Make sure we got an object
+
+            // Convert simple string and array specifications to an object.
             if (is_string($specs)) {
                 $specs = (object) ['className' => $specs];
             }
@@ -105,8 +130,11 @@ trait Configurable
             }
             $assignable = false;
             if (is_object($specs)) {
+
+                // Initialize missing properties.
                 $specs->construct = $specs->construct ?? false;
                 $specs->constructUnpack = $specs->constructUnpack ?? false;
+
                 if (
                     ($specs->construct || $specs->constructUnpack)
                 ) {
@@ -206,10 +234,12 @@ trait Configurable
     }
 
     /**
+     * Construct an instance of a "plain" class (one that doesn't implement
+     * Configurable) and assign a property.
      *
      * @param string $property The property name.
      * @param mixed $propertyIndex If the property is an array, this is the
-     * index of the value to be set.
+     *              index of the value to be set.
      * @param mixed $specs Object specifications from configureClassMap.
      * @param type $value
      *
@@ -281,15 +311,19 @@ trait Configurable
 
     /**
      * Create a new object or array of objects and assign values.
+     *
      * @param object|string $specs Information on the class/array to be created.
      * @param string $property Name of the property to be created.
      * @param mixed $value Value of the property.
      * @param $options Strict, logging options.
+     *
      * @return array List of errors, empty if none.
      */
     protected function configureInstance($specs, $property, $value, $options)
     {
         $result = [];
+
+        // If the value appears to be an associative array, convert to object.
         if (
             is_array($value)
             && array_key_first($value) !== 0
@@ -427,8 +461,11 @@ trait Configurable
      *
      * @param string $property The property name.
      * @param mixed $propertyIndex If the property is an array, this is the
-     * index of the value to be set.
+     *              index of the value to be set. If the index is null, the
+     *              value is appended to the array.
      * @param mixed $value The value to be assigned to the property/index.
+     *
+     * @return array A list of errors, empty if no errors.
      */
     protected function configureSetProperty($property, $propertyIndex, $value)
     {
