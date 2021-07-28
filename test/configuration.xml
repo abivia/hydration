@@ -7,8 +7,8 @@
     </coverage>
     <testsuites>
         <testsuite name="abivia/configurable">
-            <directory>./php72</directory>
-            <directory phpVersion="7.4.0">./php74</directory>
+            <directory>./php73</directory>
+            <directory phpVersion="7.4.0" phpVersionOperator=">=">./php74</directory>
         </testsuite>
     </testsuites>
 </phpunit>
