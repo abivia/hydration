@@ -44,6 +44,9 @@ test:php7.4:
       # Install all project dependencies
       - php composer.phar install
 
+  script:
+    - vendor/bin/phpunit --configuration test/configuration.xml --coverage-text --colors=never
+
 test:php8.0:
   image: php:8.0
   before_script:
