@@ -63,7 +63,8 @@ test:php8.0:
     - curl -sS https://getcomposer.org/installer | php
 
     # Install all project dependencies
-    - php composer.phar reinstall
+    - php composer.phar install
+    - php composer.phar update
 
   script:
     - vendor/bin/phpunit --configuration test/configuration.xml --coverage-text --colors=never
