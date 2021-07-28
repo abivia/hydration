@@ -2,9 +2,12 @@
 
 namespace Abivia\Configurable\Tests\Php72;
 
+use Abivia\Configurable\Configurable;
+use PHPUnit\Framework\TestCase;
+
 class ConfigCastArray
 {
-    use \Abivia\Configurable\Configurable;
+    use Configurable;
 
     /**
      *
@@ -17,7 +20,7 @@ class ConfigCastArray
      */
     public $simple = [];
 
-    protected function configureClassMap($property, $value)
+    protected function configureClassMap(string $property, $value)
     {
         if ($property === 'simple') {
             return ['className' => 'array'];
@@ -25,7 +28,7 @@ class ConfigCastArray
         return false;
     }
 
-    protected function configureValidate($property, &$value)
+    protected function configureValidate(string $property, &$value)
     {
         if ($property === 'simple') {
             foreach ($value as $element) {
@@ -41,7 +44,7 @@ class ConfigCastArray
 /**
  * Test creating an simple array from a nested class
  */
-class CastArrayTest extends \PHPUnit\Framework\TestCase
+class CastArrayTest extends TestCase
 {
     public function testConfigure()
     {

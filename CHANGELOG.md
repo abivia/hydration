@@ -1,6 +1,12 @@
 Change log for Abivia\Configurable
 ====
 
+2.0.0
+---
+- Drop support for PHP 7.2
+- Add parameter and return types
+- New major version since some of these may be breaking changes.
+
 1.0.11
 ---
 - Produce a reasonable error when an unexpected scalar is encountered.
@@ -32,8 +38,8 @@ Change log for Abivia\Configurable
 1.0.4
 ---
 
-- Added `construct` and `constructUnpack` flags to results from class mapping.
-    This allows instantiation of classes via constructor, eg. DateInterval.
+- Added `construct` and `constructUnpack` flags to the results from class mapping.
+    This allows instantiation of classes via constructor, e.g. DateInterval.
 
 1.0.3
 ----

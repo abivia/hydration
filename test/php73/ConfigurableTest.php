@@ -2,15 +2,19 @@
 
 namespace Abivia\Configurable\Tests\Php72;
 
+use Abivia\Configurable\Configurable;
+use Exception;
+use PHPUnit\Framework\TestCase;
+use stdClass;
 use Symfony\Component\Yaml\Yaml;
 
-class BadConfigException extends \Exception
+class BadConfigException extends Exception
 {
 }
 
 class ConfigurableMain
 {
-    use \Abivia\Configurable\Configurable;
+    use Configurable;
 
     public $badClass1;
     public $badClass2;
@@ -49,7 +53,7 @@ class ConfigurableMain
      * @return mixed An object containing a class name and key, or false
      * @codeCoverageIgnore
      */
-    protected function configureClassMap($property, $value)
+    protected function configureClassMap(string $property, $value)
     {
         static $classMap = [
             'badClass1' => ['className' => 'ThisClassDoesNotExist'],
@@ -68,7 +72,7 @@ class ConfigurableMain
                 break;
             case 'badClass4':
                 // Test object in place of className
-                $result = new \stdClass;
+                $result = new stdClass;
                 $result->className = (object) ['totally' => 'invalid'];
                 break;
             case 'subAssoc':
@@ -76,7 +80,7 @@ class ConfigurableMain
                 $result = $classMap[$property];
                 break;
             case 'subCallable':
-                $result = new \stdClass;
+                $result = new stdClass;
                 $result->key = [$this, 'addToCallable'];
                 $result->className = ConfigurableSub::class;
                 break;
@@ -85,7 +89,7 @@ class ConfigurableMain
                 $result = ConfigurableSub::class;
                 break;
             case 'subDynamic':
-                $result = new \stdClass;
+                $result = new stdClass;
                 $result->key = 'key';
                 $result->className = function ($value) {
                     if (is_array($value)) {
@@ -131,7 +135,7 @@ class ConfigurableMain
                 if (!is_string($value)) {
                     continue;
                 }
-                $obj = new \stdClass;
+                $obj = new stdClass;
                 $obj->subProp1 = $value;
                 $config->subClass[$key] = $obj;
             }
@@ -147,17 +151,17 @@ class ConfigurableMain
         $this->configureOptions['_custom'] = 'appOptions';
     }
 
-    protected function configurePropertyBlock($property)
+    protected function configurePropertyBlock(string $property)
     {
         return in_array($property, ['doNotConfigure']);
     }
 
-    protected function configurePropertyIgnore($property)
+    protected function configurePropertyIgnore(string $property)
     {
         return $property == 'ignored';
     }
 
-    protected function configurePropertyMap($property) {
+    protected function configurePropertyMap(string $property) {
         if ($property === 'class') {
             $property = 'mappedClass';
         } elseif (substr($property, 0, 5) == 'array') {
@@ -166,7 +170,7 @@ class ConfigurableMain
         return $property;
     }
 
-    protected function configureValidate($property, $value)
+    protected function configureValidate(string $property, &$value)
     {
         switch ($property) {
             case 'prop1':
@@ -190,7 +194,7 @@ class ConfigurableMain
  */
 class ConfigurableSub
 {
-    use \Abivia\Configurable\Configurable;
+    use Configurable;
 
     public $conflicted;
     public $key;
@@ -198,12 +202,12 @@ class ConfigurableSub
     public $notConfigurable;
     public $subProp1;
 
-    protected function configurePropertyBlock($property)
+    protected function configurePropertyBlock($property): bool
     {
         return in_array($property, ['conflicted']);
     }
 
-    protected function configurePropertyAllow($property)
+    protected function configurePropertyAllow($property): bool
     {
         return in_array($property, ['conflicted', 'key', 'keyP', 'subProp1']);
     }
@@ -224,7 +228,7 @@ class ConfigurableSub
  */
 class ConfigurableTypeA
 {
-    use \Abivia\Configurable\Configurable;
+    use Configurable;
 
     public $key;
     public $propA;
@@ -236,14 +240,14 @@ class ConfigurableTypeA
  */
 class ConfigurableTypeB
 {
-    use \Abivia\Configurable\Configurable;
+    use Configurable;
 
     public $key;
     public $propB;
     public $type;
 }
 
-class ConfigurableTest extends \PHPUnit\Framework\TestCase
+class ConfigurableTest extends TestCase
 {
 
     static $configSource = [
@@ -303,7 +307,7 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase
                 throw new Exception('Unknown format ' . $format);
         }
         if (!$result) {
-            throw new Execption('Configuration source error in ' . $method);
+            throw new Exception('Configuration source error in ' . $method);
         }
         return $result;
     }
@@ -462,7 +466,6 @@ class ConfigurableTest extends \PHPUnit\Framework\TestCase
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
             $obj->prop1 = 'uninitialized';
-            $success = null;
             try {
                 $obj->configure($config, BadConfigException::class);
                 $this->assertEquals([], $obj->configureGetErrors());

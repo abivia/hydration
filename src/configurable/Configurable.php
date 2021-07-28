@@ -1,5 +1,9 @@
 <?php
+declare(strict_types=1);
+
 namespace Abivia\Configurable;
+
+use Error;
 
 /**
  * Copy information from a object created from a JSON configuration.
@@ -13,16 +17,16 @@ trait Configurable
     /**
      * Copy configuration data to object properties.
      *
-     * @param object $config Object from decoding a configuration file
+     * @param object|array $config Result from decoding a configuration file
      *              (typically from JSON or YAML).
-     * @param mixed $options Strict error handling method or option array.
+     * @param mixed $options Strict error handling flag or option array.
      *
      * @return bool True if all fields passed validation; if in strict mode
      *              true when all fields are defined class properties.
      *
-     * @throws Exception
+     * @throws \Exception
      */
-    public function configure($config, $options = false)
+    public function configure($config, $options = false): bool
     {
         // Map a scalar strict argument into the options array for backward
         // compatibility.
@@ -36,7 +40,7 @@ trait Configurable
         }
 
         // If newlog is missing or set true, reset the log, then pass false
-        // down to callees.
+        // down to callee.
         if (!isset($options['newlog']) || $options['newlog'] == true) {
             $this->configureErrors = [];
         }
@@ -68,7 +72,7 @@ trait Configurable
             $blocked = $this->configurePropertyBlock($property);
             $ignored = $this->configurePropertyIgnore($property);
             $allowed = $this->configurePropertyAllow($property);
-            if (!property_exists($this, $property)) {
+            if (!property_exists($this, (string) $property)) {
                 $allowed = false;
             }
 
@@ -98,7 +102,7 @@ trait Configurable
     /**
      * Assign a property.
      *
-     * @param type $origProperty The original property name.
+     * @param string $origProperty The original property name.
      * @param string $property The mapped property name.
      * @param mixed $propertyIndex If the property is an array, this is the
      *  index of the value to be set.
@@ -108,8 +112,8 @@ trait Configurable
      * @return boolean
      */
     private function configureAssign(
-        $origProperty, $property, $propertyIndex, $value, $options
-    ) {
+        string $origProperty, string $property, $propertyIndex, $value, array $options
+    ): bool {
         $result = true;
         $valid = true;
 
@@ -181,7 +185,7 @@ trait Configurable
      * The return value is false, a string, or an object.
      * If the return value is false, the object is stored without further work.
      * If the return value is a string, it is treated as the name of a
-     * constructible class or a class that has a configure() method.
+     * constructable class or a class that has a configure() method.
      * The returned object follows this form:
      *  {
      *      className (string|callable): The name of the class to be used for
@@ -213,12 +217,10 @@ trait Configurable
      * @return mixed An object containing a class name/callable and key, a class name, or false
      * @codeCoverageIgnore
      */
-    protected function configureClassMap($property, $value)
+    protected function configureClassMap(string $property, $value)
     {
-        /*
-         *
-         *
-         */
+        // Default is do nothing
+
         return false;
     }
 
@@ -228,7 +230,7 @@ trait Configurable
      * @return bool True when post-configuration is successful.
      * @codeCoverageIgnore
      */
-    protected function configureComplete()
+    protected function configureComplete(): bool
     {
         return true;
     }
@@ -241,16 +243,16 @@ trait Configurable
      * @param mixed $propertyIndex If the property is an array, this is the
      *              index of the value to be set.
      * @param mixed $specs Object specifications from configureClassMap.
-     * @param type $value
+     * @param mixed $value
      *
      * @return array
      */
     protected function configureConstruct(
-        $property, $propertyIndex, $specs, $value
-    ) {
+        string $property, $propertyIndex, $specs, $value
+    ): array {
         $errors = [];
         if (!class_exists($specs->className)) {
-            $errors[] = "Class not found: {$specs->className}";
+            $errors[] = "Class not found: $specs->className";
             return $errors;
         }
         try {
@@ -265,13 +267,21 @@ trait Configurable
             $errors = $this->configureSetProperty(
                 $property, $propertyIndex, $value
             );
-        } catch (\Error $err) {
+        } catch (Error $err) {
             $errors[] = 'Unable to construct: ' . $err->getMessage();
         }
         return $errors;
     }
 
 
+    /**
+     * Determine which class to instantiate.
+     *
+     * @param mixed $specs The method for determining the class name.
+     * @param mixed $value The value we're creating a class for.
+     *
+     * @return false|mixed|string
+     */
     public function configureGetClass($specs, $value)
     {
         $ourClass = false;
@@ -291,7 +301,7 @@ trait Configurable
      * Get and flush the error log
      * @return array
      */
-    public function configureGetErrors()
+    public function configureGetErrors(): array
     {
         $log = $this->configureErrors;
         $this->configureErrors = [];
@@ -300,8 +310,10 @@ trait Configurable
 
     /**
      * Initialize configuration.
-     * @param object $config Object from decoding a configuration file (typically from JSON).
+     *
+     * @param object|array $config Result from decoding a configuration file (typically from JSON).
      * @param mixed $context Any application-dependent information.
+     *
      * @return mixed Application dependent; a return value of false will cause an abort.
      */
     protected function configureInitialize(&$config, ...$context)
@@ -315,11 +327,11 @@ trait Configurable
      * @param object|string $specs Information on the class/array to be created.
      * @param string $property Name of the property to be created.
      * @param mixed $value Value of the property.
-     * @param $options Strict, logging options.
+     * @param array $options Strict, logging options.
      *
      * @return array List of errors, empty if none.
      */
-    protected function configureInstance($specs, $property, $value, $options)
+    protected function configureInstance($specs, string $property, $value, array $options): array
     {
         $result = [];
 
@@ -336,6 +348,7 @@ trait Configurable
             $value = [$value];
         }
         $goodClass = true;
+        $ourClass = false;
         if (is_array($value)) {
             $this->$property = [];
             foreach ($value as $element) {
@@ -403,7 +416,7 @@ trait Configurable
     /**
      * Log an error
      * @param string|array message An error message to log or an array of messages to log
-     * @return null
+     * @return void
      */
     protected function configureLogError($message)
     {
@@ -416,30 +429,30 @@ trait Configurable
 
     /**
      * Check if the property can be loaded from configuration.
-     * @param string $property
+     * @param string|int $property
      * @return bool true if the property is allowed.
      */
-    protected function configurePropertyAllow($property)
+    protected function configurePropertyAllow($property): bool
     {
         return true;
     }
 
     /**
      * Check if the property is blocked from loading.
-     * @param string $property The property name.
+     * @param string|int $property The property name.
      * @return bool true if the property is blocked.
      */
-    protected function configurePropertyBlock($property)
+    protected function configurePropertyBlock($property): bool
     {
         return false;
     }
 
     /**
      * Check if the property should be ignored.
-     * @param string $property The property name.
+     * @param string|int $property The property name.
      * @return bool true if the property is ignored.
      */
-    protected function configurePropertyIgnore($property)
+    protected function configurePropertyIgnore($property): bool
     {
         return false;
     }
@@ -448,7 +461,7 @@ trait Configurable
      * Map the configured property name to the class property. Can return a
      * modified property name or an array of [property, index] for an array.
      *
-     * @param string $property
+     * @param string|int $property
      * @return string|array
      */
     protected function configurePropertyMap($property)
@@ -467,7 +480,7 @@ trait Configurable
      *
      * @return array A list of errors, empty if no errors.
      */
-    protected function configureSetProperty($property, $propertyIndex, $value)
+    protected function configureSetProperty(string $property, $propertyIndex, $value): array
     {
         if (is_object($value) && get_class($value) === 'stdClass') {
             // Clone the stdClass so we can't corrupt the source data
@@ -480,20 +493,23 @@ trait Configurable
             } else {
                 $this->$property[$propertyIndex] = $value;
             }
-        } catch (\Error $err) {
-            $errors[] = "Unable to set {$property}: " . $err->getMessage();
+        } catch (Error $err) {
+            $errors[] = "Unable to set $property: " . $err->getMessage();
         }
         return $errors;
     }
 
     /**
      * Create a new object or array of objects and assign values. This is a stub.
+     *
      * @param string $property Name of the property to be validated.
      * @param mixed $value Value of the property.
+     *
      * @return bool True when the value is valid for the property.
+     *
      * @codeCoverageIgnore
      */
-    protected function configureValidate($property, &$value)
+    protected function configureValidate(string $property, &$value): bool
     {
         return true;
     }

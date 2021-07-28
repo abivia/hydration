@@ -2,9 +2,14 @@
 
 namespace Abivia\Configurable\Tests\Php74;
 
+use Abivia\Configurable\Configurable;
+use DateInterval;
+use PHPUnit\Framework\TestCase;
+use stdClass;
+
 class ConfigConstruct
 {
-    use \Abivia\Configurable\Configurable;
+    use Configurable;
 
     /**
      * @var Constructable
@@ -15,13 +20,13 @@ class ConfigConstruct
      *
      * @var DateInterval
      */
-    public ?\DateInterval $anInterval = null;
+    public ?DateInterval $anInterval = null;
 
     public $badConstruct;
 
     public $nope;
 
-    protected function configureClassMap($property, $value)
+    protected function configureClassMap(string $property, $value)
     {
         if ($property === 'anObject') {
             return ['className' => Constructable::class, 'constructUnpack' => true];
@@ -52,11 +57,11 @@ class Constructable
 
 class NestedConstruct
 {
-    use \Abivia\Configurable\Configurable;
+    use Configurable;
 
     public $sub;
 
-    protected function configureClassMap($property, $value)
+    protected function configureClassMap(string $property, $value)
     {
         if ($property === 'sub') {
             return ConfigConstruct::class;
@@ -65,26 +70,26 @@ class NestedConstruct
     }
 }
 
-class ConstructTest extends \PHPUnit\Framework\TestCase
+class ConstructTest extends TestCase
 {
     public function testConstruct()
     {
-        $input = new \stdClass();
+        $input = new stdClass();
         $input->anInterval = 'P3M';
         $testObj = new ConfigConstruct();
         $testObj->configure($input);
-        $this->assertInstanceOf(\DateInterval::class, $testObj->anInterval);
+        $this->assertInstanceOf(DateInterval::class, $testObj->anInterval);
         $this->assertEquals(3, $testObj->anInterval->m);
     }
 
     public function testBadUnpack1()
     {
-        $input = new \stdClass();
+        $input = new stdClass();
         $input->badConstruct = 1;
         $testObj = new ConfigConstruct();
         $testObj->configure($input);
         $errors = $testObj->configureGetErrors();
-        $this->assertEquals(2, count($errors));
+        $this->assertCount(2, $errors);
         $this->assertEquals(
             0,
             strpos(
@@ -97,12 +102,12 @@ class ConstructTest extends \PHPUnit\Framework\TestCase
 
     public function testBadUnpack2()
     {
-        $input = new \stdClass();
+        $input = new stdClass();
         $input->badConstruct = [1];
         $testObj = new ConfigConstruct();
         $testObj->configure($input);
         $errors = $testObj->configureGetErrors();
-        $this->assertEquals(2, count($errors));
+        $this->assertCount(2, $errors);
         $this->assertEquals('Unable to configure property "badConstruct":', $errors[0]);
         $this->assertTrue(
             strpos(
@@ -115,7 +120,7 @@ class ConstructTest extends \PHPUnit\Framework\TestCase
 
     public function testNoClass()
     {
-        $input = new \stdClass();
+        $input = new stdClass();
         $input->nope = 'P3M';
         $testObj = new ConfigConstruct();
         $testObj->configure($input);
@@ -130,14 +135,14 @@ class ConstructTest extends \PHPUnit\Framework\TestCase
 
     public function testNestedBadUnpack()
     {
-        $sub = new \stdClass();
+        $sub = new stdClass();
         $sub->badConstruct = [1];
-        $input = new \stdClass;
+        $input = new stdClass;
         $input->sub = $sub;
         $testObj = new NestedConstruct();
         $testObj->configure($input);
         $errors = $testObj->configureGetErrors();
-        $this->assertEquals(3, count($errors));
+        $this->assertCount(3, $errors);
         $this->assertEquals('Unable to configure property "sub":', $errors[0]);
         $this->assertEquals('Unable to configure property "badConstruct":', $errors[1]);
         $this->assertTrue(
@@ -152,7 +157,7 @@ class ConstructTest extends \PHPUnit\Framework\TestCase
 
     public function testConstructUnpack()
     {
-        $input = new \stdClass();
+        $input = new stdClass();
         $input->anObject = ['one', 'two'];
         $testObj = new ConfigConstruct();
         $testObj->configure($input);

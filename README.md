@@ -1,14 +1,13 @@
 Abivia\Configurable
 ====
 
-Configurable is designed to make it easy to hydrate (populate) complex
-data structures from JSON or YAML sources. If your application
+Configurable is designed to make it easy to hydrate (populate) complex data structures from user editable JSON or YAML
+sources. If your application
 
 - has configurations with several levels of nesting,
 - isn't validating user editable data in configuration files,
-- is spending a lot of effort reading from the stdClass objects created by
-by `json_decode()` or `yaml_parse()` to convert them into your
-application's class structures, or
+- is spending a lot of effort reading from the stdClass objects created by `json_decode()` or `yaml_parse()` to convert
+  them into your application's class structures, or
 - is just using poorly typed, IDE unfriendly `stdClass` objects for
 configuration
 
@@ -23,8 +22,7 @@ class,
 - selectively cast properties to an array,
 - validate the source data,
 - guard against overwriting of protected properties, and
-- remap properties from user-friendly names to application-meaningful
- identifiers.
+- map properties from user-friendly names to application-meaningful identifiers.
 
 Example
 ----
@@ -121,8 +119,8 @@ Basic example:
 class ConfigurableObject {
     use \Abivia\Configurable\Configurable;
 
-    protected $userName;
-    protected $password;
+    public $userName;
+    public $password;
 
 }
 $json = '{"userName": "admin"; "password": "insecure"}';
@@ -278,7 +276,7 @@ with a class that does not have the `primary` property, the result depends on th
         protected $width;
 
     }
-
+    $jsonDecoded = json_decode('some valid json string');
     $obj = new SomeClass();
     // Returns true
     $obj->configure($jsonDecoded);
@@ -310,11 +308,14 @@ Your application can support a shorthand expression:
 ```
 With this code in the initialization:
 ```php
-protected function configureInitialize(&$config) {
-    if (is_string($config)) {
-        $obj = new stdClass;
-        $obj->name = $config;
-        $config = $obj;
+class MyClass
+{
+    protected function configureInitialize(&$config) {
+        if (is_string($config)) {
+            $obj = new stdClass;
+            $obj->name = $config;
+            $config = $obj;
+        }
     }
 }
 ```
@@ -322,27 +323,28 @@ protected function configureInitialize(&$config) {
 
 Validation
 ---
-Scalar properties can be validated with `configureValidate()`. This method takes
-the property name and the input value as arguments.
-The value is passed by reference so that the validation can enforce specific formats
-required by the object (for example by forcing case or cleaning out unwanted characters).
+Scalar properties can be validated with `configureValidate()`. This method takes the property name and the input value
+as arguments. The value is passed by reference so that the validation can enforce specific formats required by the
+object (for example by forcing case or cleaning out unwanted characters).
 
-The `configureComplete()` method provides a mechanism for object level validation. For
-example, this method could be used to validate a set of access credentials, logging an
-error or aborting the configuration process entirely if they are not valid.
+The `configureComplete()` method provides a mechanism for object level validation. For example, this method could be
+used to validate a set of access credentials, logging an error or aborting the configuration process entirely if they
+are not valid.
 
 Property Name Mapping
 ---
 Since configuration files allow properties that are not valid PHP property names,
-`configurePropertyMap()` can be used to convert illegal input properties to valid
-PHP identifiers.
+`configurePropertyMap()` can be used to convert illegal input properties to valid PHP identifiers.
 
 ```php
-protected function configurePropertyMap($property) {
-    if ($property[0] == '$') {
-        $property = 'dollar_' . substr($property, 1);
+class MyClass
+{
+    protected function configurePropertyMap($property) {
+        if ($property[0] == '$') {
+            $property = 'dollar_' . substr($property, 1);
+        }
+        return $property;
     }
-    return $property;
 }
 ```
 
@@ -360,7 +362,7 @@ For example this json:
 Can be used to create an array:
 
 ````php
-$configured->prop = ['one' => 'element one', 'six' => 'element six']
+$configured->prop = ['one' => 'element one', 'six' => 'element six'];
 ````
 
 Contained Classes

@@ -2,33 +2,38 @@
 
 namespace Abivia\Configurable\Tests\Php74;
 
+use Abivia\Configurable\Configurable;
+use PHPUnit\Framework\TestCase;
+use StdClass;
+
 class ConfigPropType
 {
-    use \Abivia\Configurable\Configurable;
+    use Configurable;
 
-    public ?\integer $integral = null;
+    public ?int $integral = null;
 
 }
 
-class TypedPropertyTest extends \PHPUnit\Framework\TestCase
+class TypedPropertyTest extends TestCase
 {
     public function testBadType()
     {
-        $input = new \StdClass();
+        $input = new StdClass();
         $input->integral = 'not an integer';
         $testObj = new ConfigPropType();
         $testObj->configure($input);
         $errors = $testObj->configureGetErrors();
-        $this->assertEquals(2, count($errors));
-        $this->assertEquals(
-            [
-                'Unable to configure property "integral":',
-                'Unable to set integral: Typed property'
+        $this->assertCount(2, $errors);
+        $expected = ['Unable to configure property "integral":'];
+        if (PHP_MAJOR_VERSION === 7) {
+            $expected[] = 'Unable to set integral: Typed property'
                 . ' Abivia\Configurable\Tests\Php74\ConfigPropType::$integral'
-                . ' must be an instance of integer or null, string used'
-            ],
-            $errors
-        );
+                . ' must be an instance of integer or null, string used';
+        } else {
+            $expected[] = 'Unable to set integral: Cannot assign string to property'
+             . ' Abivia\Configurable\Tests\Php74\ConfigPropType::$integral of type ?int';
+        }
+        $this->assertEquals($expected, $errors);
     }
 
 }

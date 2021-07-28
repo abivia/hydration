@@ -5,7 +5,8 @@
     "homepage": "https://gitlab.com/abivia/configurable",
     "type": "library",
     "require": {
-        "php": ">=7.2"
+        "php": ">=7.3",
+        "ext-json": "*"
     },
     "require-dev": {
         "phpunit/phpunit": "^9.0-stable",
