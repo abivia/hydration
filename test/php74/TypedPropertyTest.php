@@ -24,16 +24,8 @@ class TypedPropertyTest extends TestCase
         $testObj->configure($input);
         $errors = $testObj->configureGetErrors();
         $this->assertCount(2, $errors);
-        $expected = ['Unable to configure property "integral":'];
-        if (PHP_MAJOR_VERSION === 7) {
-            $expected[] = 'Unable to set integral: Typed property'
-                . ' Abivia\Configurable\Tests\Php74\ConfigPropType::$integral'
-                . ' must be an instance of integer or null, string used';
-        } else {
-            $expected[] = 'Unable to set integral: Cannot assign string to property'
-             . ' Abivia\Configurable\Tests\Php74\ConfigPropType::$integral of type ?int';
-        }
-        $this->assertEquals($expected, $errors);
+        $this->assertEquals('Unable to configure property "integral":', $errors[0]);
+        $this->assertTrue(strpos($errors[1], 'Unable to set integral:') !== false);
     }
 
 }
