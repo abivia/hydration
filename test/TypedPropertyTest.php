@@ -1,5 +1,5 @@
 <?php
-
+/*
 namespace Abivia\Configurable\Tests\Php74;
 
 use Abivia\Configurable\Configurable;
@@ -29,3 +29,4 @@ class TypedPropertyTest extends TestCase
     }
 
 }
+*/
