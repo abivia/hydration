@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Abivia\Hydration;
 
 use Closure;
+use Error;
 use ReflectionProperty;
 use function count;
 
@@ -24,6 +25,9 @@ use function count;
  */
 class Property
 {
+    protected const MODE_CLASS = 1;
+    protected const MODE_CONSTRUCT = 2;
+    protected const MODE_SIMPLE = 3;
     /**
      * @var string|null The name of the property within this property's value to use as an array
      * key. If null, this property is a scalar or single object.
@@ -90,9 +94,9 @@ class Property
     protected bool $ignored = false;
 
     /**
-     * @var string Determines how we hydrate this property.
+     * @var int Determines how we hydrate this property.
      */
-    protected string $mode;
+    protected int $mode;
 
     /**
      * @var ReflectionProperty Reflection information on the property we're bound to.
@@ -134,7 +138,7 @@ class Property
         $this->sourceProperty = $property;
         $this->targetProperty = $property;
         $this->binding = $binding;
-        $this->mode = $binding === null ? 'simple' : 'class';
+        $this->mode = $binding === null ? self::MODE_SIMPLE : self::MODE_CLASS;
     }
 
     /**
@@ -169,39 +173,34 @@ class Property
      * @param object $target The object being hydrated.
      * @param mixed $value Value of the property.
      * @param array $options
-     * @return array|mixed
+     * @return bool
+     * @throws HydrationException
      */
-    public function assign(object $target, $value, array $options = [])
+    public function assign(object $target, $value, array $options = []): bool
     {
         $this->errors = [];
+        if ($this->blocked) {
+            return false;
+        }
         if ($this->ignored) {
             return true;
         }
-        switch ($this->mode) {
-            case 'class': {
-                $this->assignInstance($target, $value->{$this->sourceProperty}, $options);
+        if ($this->mode === self::MODE_SIMPLE) {
+            if ($this->castArray && is_object($value)) {
+                $value = (array) $value;
             }
-            break;
-
-            case 'construct': {
-                $this->assignWithConstructor($target, $value->{$this->sourceProperty});
-            }
-            break;
-
-            case 'simple': {
-                if ($this->arrayMode) {
-                    if ($this->castArray && is_object($value)) {
-                        $value = (array) $value;
-                    } elseif (!is_array($value)) {
-                        $value = [$value];
-                    }
-                    $this->assignArray($target, $value);
-                } else {
-                    $this->assignProperty($target, $value);
+            if ($this->arrayMode) {
+                if (!is_array($value)) {
+                    $value = [$value];
                 }
+                $this->assignArray($target, $value);
+            } else {
+                $this->assignProperty($target, $value);
             }
-            break;
+        } else {
+            $this->assignInstance($target, $value, $options);
         }
+
         return count($this->errors) === 0;
     }
 
@@ -220,7 +219,7 @@ class Property
             if (!$this->checkValidity($element)) {
                 return;
             }
-            $key = $this->getArrayIndex($element, $index);
+            $key = $this->getArrayIndex($target, $element, $index);
             if (!$this->duplicateKeys && isset($tempArray[$key])) {
                 $this->errors[] = "Duplicate key \"$key\" configuring \$$this->targetProperty in "
                     . get_class($target);
@@ -237,23 +236,21 @@ class Property
      * @param object $target The object being hydrated.
      * @param mixed $value Value of the property.
      * @param array $options Strict, logging options.
+     * @throws HydrationException
      */
     protected function assignInstance(object $target, $value, array $options)
     {
         // If the value appears to be an associative array, convert to object.
-        if (
-            is_array($value)
-            && array_key_first($value) !== 0
-            && array_key_first($value) !== null
-        ) {
+        if ($this->isAssociative($value)) {
             $value = (object)$value;
         }
+
         if ($this->arrayMode && !is_array($value)) {
             // If it's keyed, force an array
             $value = [$value];
         }
         try {
-            if (is_array($value)) {
+            if (is_array($value) && $this->mode !== self::MODE_CONSTRUCT) {
                 // Reflection's setValue() doesn't let us change array contents.
                 // Build the whole array, then assign it.
                 $tempArray = [];
@@ -261,9 +258,25 @@ class Property
                     if (!$this->checkValidity($element)) {
                         return;
                     }
+                    if ($this->isAssociative($element)) {
+                        $element = (object)$element;
+                    }
                     $obj = $this->makeTarget($element, $options);
-                    $result = $obj->{$this->hydrateMethod}($element, $options);
-                    $key = $this->getArrayIndex($element);
+
+                    if(get_class($obj) !== 'stdClass') {
+                        if (!method_exists($obj, $this->hydrateMethod)) {
+                            throw new HydrationException(
+                                'Class ' . get_class($obj)
+                                . " has no hydration method $this->hydrateMethod" . '()'
+                            );
+                        }
+                        $obj->{$this->hydrateMethod}($element, $options);
+                    }
+                    if ($this->setMethod !== '') {
+                        $target->{$this->setMethod}($obj);
+                        continue;
+                    }
+                    $key = $this->getArrayIndex($obj, $element);
                     if ($key !== null && !$this->duplicateKeys && isset($tempArray[$key])) {
                         $this->errors[] = "Duplicate key \"$key\" configuring \$$this->sourceProperty in "
                             . get_class($obj);
@@ -275,18 +288,26 @@ class Property
                         }
                     }
                 }
-                $this->assignProperty($target, $tempArray, false);
+                if ($this->setMethod === '') {
+                    $this->assignProperty($target, $tempArray, false);
+                }
             } else {
                 if (!$this->checkValidity($value)) {
                     return;
                 }
-                $obj = $this->makeTarget($value);
-                $result = $obj->{$this->hydrateMethod}($value, $options);
+                $obj = $this->makeTarget($value, $options);
+
+                // In construct mode, $value was used to hydrate $obj via constructor.
+                if ($this->mode !== self::MODE_CONSTRUCT) {
+                    $obj->{$this->hydrateMethod}($value, $options);
+                }
                 $this->assignProperty($target, $obj);
             }
         } catch (AssignmentException $e) {
-            $this->errors[] = $e->getMessage() . " configuring \$$this->sourceProperty"
+            $msg = $e->getMessage() . " configuring \$$this->sourceProperty"
                 . (isset($obj) ? ' in ' . get_class($obj) : '');
+            $this->errors[] = $msg;
+            throw new HydrationException($msg);
         }
 
     }
@@ -307,8 +328,10 @@ class Property
             $value = clone $value;
         }
         try {
-            if ($useArray && $this->arrayMode) {
-                $key = $this->getArrayIndex($value);
+            if ($this->setMethod !== '') {
+                $target->{$this->setMethod}($value);
+            } elseif ($useArray && $this->arrayMode) {
+                $key = $this->getArrayIndex($target, $value);
                 // Assigning an array element
                 if ($this->reflection->isPublic()) {
                     if ($key !== null) {
@@ -341,35 +364,6 @@ class Property
     }
 
     /**
-     * Construct an instance of a "plain" class (one that doesn't implement
-     * Configurable) and assign a property.
-     *
-     * @param object $target The object being hydrated.
-     * @param mixed $value
-     */
-    protected function assignWithConstructor(object $target, $value)
-    {
-        if (!class_exists($this->binding)) {
-            $this->errors[] = "Class not found: $this->binding";
-            return;
-        }
-        try {
-            if ($this->unpackArguments) {
-                if (is_scalar($value)) {
-                    $value = [$value];
-                }
-                $value = new $this->binding(...$value);
-            } else {
-                $value = new $this->binding($value);
-            }
-            $this->assignProperty($target, $value);
-
-        } catch (Error $err) {
-            $this->errors[] = "Unable to construct $this->binding: " . $err->getMessage();
-        }
-    }
-
-    /**
      * Name of the class to store this property into.
      *
      * @param string|null $binding The class name.
@@ -380,8 +374,7 @@ class Property
     {
         $this->binding = $binding;
         $this->hydrateMethod = $method;
-        $this->mode = $binding === null ? 'simple'
-            : ($binding === 'array' ? 'array' : 'class');
+        $this->mode = $binding === null ? self::MODE_SIMPLE : self::MODE_CLASS;
 
         return $this;
     }
@@ -396,8 +389,8 @@ class Property
 
     protected function checkValidity($value): bool
     {
-        if ($validator = $this->validateClosure) {
-            if (!$validator($value)) {
+        if ($this->validateClosure) {
+            if (!($this->validateClosure)($value)) {
                 $this->errors[] = "Invalid value for $this->sourceProperty";
                 return false;
             }
@@ -410,7 +403,12 @@ class Property
     {
         $this->binding = $objectClass;
         $this->unpackArguments = $unpack;
-        $this->mode = 'construct';
+        $this->mode = self::MODE_CONSTRUCT;
+        if ($this->arrayMode) {
+            throw new HydrationException(
+                "Can't use construct() and key() with the same property."
+            );
+        }
 
         return $this;
     }
@@ -435,11 +433,12 @@ class Property
     /**
      * Get the array index based on a value.
      *
+     * @param object $target
      * @param mixed $value The value being stored.
      * @param mixed $default Optional value if not in array mode.
      * @return string|int|null
      */
-    protected function getArrayIndex($value, $default = null)
+    protected function getArrayIndex(object $target, $value, $default = null)
     {
         if (!$this->arrayMode) {
             return $default;
@@ -448,7 +447,7 @@ class Property
             return $value->{$this->arrayKey};
         }
         if ($this->arrayKeyClosure !== null) {
-            return $this->arrayKeyClosure($value);
+            return ($this->arrayKeyClosure)($target, $value);
         }
 
         return $default;
@@ -487,6 +486,21 @@ class Property
         return $this;
     }
 
+    private function isAssociative($value): bool
+    {
+        $assoc = false;
+        if (is_array($value)) {
+            foreach (array_keys($value) as $key) {
+                if (!is_int($key)) {
+                    $assoc = true;
+                    break;
+                }
+            }
+        }
+
+        return $assoc;
+    }
+
     /**
      * Name a property to be used as an array index. Null to disable array mode.
      *
@@ -500,6 +514,11 @@ class Property
         $this->arrayKeyClosure = null;
         $this->arrayMode = $key !== false;
         if ($this->arrayMode) {
+            if ($this->mode === self::MODE_CONSTRUCT) {
+                throw new HydrationException(
+                    "Can't use construct() and key() with the same property."
+                );
+            }
             if (is_string($key)) {
                 $this->arrayKey = $key;
             } elseif ($key instanceof Closure) {
@@ -510,31 +529,56 @@ class Property
         return $this;
     }
 
-    public static function make(string $property): self
+    public static function make(string $property, ?string $binding = null): self
     {
-        return new self($property);
+        $obj = new self($property);
+        if ($binding !== null) {
+            $obj->bind($binding);
+        }
+        return $obj;
     }
 
     /**
      * Create an object suitable for hydration.
      *
-     * @param object $element
+     * @param object $value
+     * @param array $options
      * @return object
      * @throws AssignmentException
+     * @throws HydrationException
      */
-    protected function makeTarget(object $element): object
+    protected function makeTarget($value, array $options): object
     {
-        $ourClass = $this->classClosure === null ? $this->binding : $this->classClosure($element);
+        $ourClass = $this->classClosure === null ? $this->binding
+            : ($this->classClosure)($value, $options);
         if (!is_string($ourClass)) {
             throw new AssignmentException("Non-string returned by with() Closure.");
         }
         if (!class_exists($ourClass)) {
-            throw new AssignmentException("Unable to find $ourClass");
+            throw new AssignmentException("Unable to load class $ourClass");
         }
-        if ($ourClass === 'stdClass') {
-            $obj = clone $element;
+        if ($ourClass === 'stdClass' && is_object($value)) {
+            $obj = clone $value;
         } else {
-            $obj = new $ourClass();
+            try {
+                if ($this->mode === self::MODE_CONSTRUCT) {
+                    if ($this->unpackArguments) {
+                        if (is_scalar($value)) {
+                            $value = [$value];
+                        }
+                        $obj = new $this->binding(...$value);
+                    } else {
+                        $obj = new $this->binding($value);
+                    }
+                } else {
+                    $obj = new $ourClass();
+                }
+            } catch (\ArgumentCountError $ex) {
+                throw new HydrationException(
+                    "Unable to create instance for \$$this->sourceProperty "
+                    . $ex->getMessage()
+                );
+            }
         }
 
         return $obj;
@@ -567,11 +611,6 @@ class Property
     public function toArray(bool $castToArray = true): self
     {
         $this->castArray = $castToArray;
-        if ($castToArray) {
-            $this->arrayKey = null;
-            $this->arrayKeyClosure = null;
-            $this->arrayMode = true;
-        }
 
         return $this;
     }
@@ -602,7 +641,7 @@ class Property
     {
         $this->classClosure = $callback;
         $this->hydrateMethod = $method;
-        $this->mode = 'closure';
+        $this->mode = self::MODE_CLASS;
 
         return $this;
     }

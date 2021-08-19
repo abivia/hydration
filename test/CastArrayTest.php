@@ -38,7 +38,12 @@ class ConfigCastArray
                     Property::make('simple')
                         ->toArray()
                         ->validate(function ($value) {
-                            return substr($value, 0, 7) === 'this is';
+                            foreach ($value as $element) {
+                                if (substr($element, 0, 7) !== 'this is') {
+                                    return false;
+                                }
+                            }
+                            return true;
                         })
                 )
                 ->bind(self::class);
@@ -86,7 +91,7 @@ class CastArrayTest extends TestCase
      */
     public function testConfigureBad2()
     {
-        $json = '{"simple": { "a": "this is a", "*": "this no good"}, "allgood":1}';
+        $json = '{"simple": { "a": "this is a", "*": "this no good"}, "allGood":1}';
 
         $testObj = new ConfigCastArray();
         $result = $testObj->hydrate(json_decode($json));

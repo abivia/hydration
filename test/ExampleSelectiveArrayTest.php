@@ -18,7 +18,8 @@ class SelectiveArrayObject
             self::$hydrator = new Hydrator();
             self::$hydrator
                 ->addProperty(
-                    Property::make('simple')->bind('array')
+                    Property::make('simple')
+                        ->toArray()
                 )
                 ->bind(self::class);
         }
@@ -26,7 +27,7 @@ class SelectiveArrayObject
     }
 }
 
-class SelectiveArrayExampleTest extends TestCase
+class ExampleSelectiveArrayTest extends TestCase
 {
     public function testExample()
     {

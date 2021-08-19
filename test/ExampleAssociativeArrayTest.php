@@ -19,7 +19,7 @@ class AssociativeArrayObject
             self::$hydrator
                 ->addProperty(
                     Property::make('list')
-                        ->bind('array')
+                        ->bind('stdClass')
                         ->key('code')
                 )
                 ->bind(self::class);
@@ -28,7 +28,7 @@ class AssociativeArrayObject
     }
 }
 
-class AssociativeArrayExampleTest extends TestCase
+class ExampleAssociativeArrayTest extends TestCase
 {
     public function testExample()
     {

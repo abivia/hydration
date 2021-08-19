@@ -54,4 +54,10 @@ class PropertyJig
     {
         return $this->privateString;
     }
+
+    public function setIgnorable($value)
+    {
+        $this->ignorable = $value;
+    }
+
 }

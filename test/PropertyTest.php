@@ -145,7 +145,7 @@ class PropertyTest extends TestCase
             ->reflects($reflectProp)
             ->bind(Objects\DefaultConfig::class);
 
-        $json = '{"objectClass": {"key": "k0", "p1": "hello"}}';
+        $json = '{"key": "k0", "p1": "hello"}';
         $config = json_decode($json);
         $status = $obj->assign($target, $config);
         $this->assertTrue($status);
@@ -167,10 +167,10 @@ class PropertyTest extends TestCase
             ->reflects($reflectProp)
             ->bind(Objects\DefaultConfig::class);
 
-        $json = '{"objectClassArray": [
+        $json = '[
             {"key": "k0", "p1": "hello"},
             {"key": "k1", "p1": "goodbye"}
-        ]}';
+        ]';
         $config = json_decode($json);
         $status = $obj->assign($target, $config);
         $this->assertTrue($status);
@@ -198,11 +198,11 @@ class PropertyTest extends TestCase
             ->reflects($reflectProp)
             ->bind(Objects\DefaultConfig::class);
 
-        $json = '{"objectClassArray": [
+        $json = '[
             {"key": "k0", "p1": "hello"},
             {"key": "k1", "p1": "goodbye"},
             {"key": "k1", "p1": "overwrite"}
-        ]}';
+        ]';
         $config = json_decode($json);
         $status = $obj->assign($target, $config);
         $this->assertFalse($status);
@@ -221,11 +221,11 @@ class PropertyTest extends TestCase
             ->allowDuplicates()
             ->bind(Objects\DefaultConfig::class);
 
-        $json = '{"objectClassArray": [
+        $json = '[
             {"key": "k0", "p1": "hello"},
             {"key": "k1", "p1": "goodbye"},
             {"key": "k1", "p1": "overwrite"}
-        ]}';
+        ]';
         $config = json_decode($json);
         $status = $obj->assign($target, $config);
         $this->assertTrue($status);
@@ -252,12 +252,26 @@ class PropertyTest extends TestCase
             ->reflects($reflectProp)
             ->construct(Objects\ConstructOneArg::class);
 
-        $json = '{"objectClass": "hello"}';
+        $json = '"hello"';
         $config = json_decode($json);
         $status = $obj->assign($target, $config);
         $this->assertTrue($status);
 
         $this->assertEquals('hello', $target->getObjectClass()->arg);
+    }
+
+    public function testAssignMethod()
+    {
+        $target = new Objects\PropertyJig();
+        $reflectClass = new \ReflectionClass($target);
+        $reflectProp = $reflectClass->getProperty('ignorable');
+
+        $obj = Property::make('ignorable')
+            ->setter('setIgnorable');
+
+        $status = $obj->assign($target, 'viaMethod');
+        $this->assertTrue($status);
+        $this->assertEquals('viaMethod', $target->ignorable);
     }
 
     public function testValidation() {

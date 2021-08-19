@@ -22,7 +22,7 @@ class BasicObject {
     }
 }
 
-class BasicExampleTest extends TestCase
+class ExampleBasicTest extends TestCase
 {
     public function testExample()
     {

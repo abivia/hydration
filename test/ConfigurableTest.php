@@ -1,8 +1,10 @@
 <?php
 
-namespace Abivia\Configurable\Tests\Php72;
+namespace Abivia\Configurable\Tests;
 
-use Abivia\Configurable\Configurable;
+use Abivia\Hydration\HydrationException;
+use Abivia\Hydration\Hydrator;
+use Abivia\Hydration\Property;
 use Exception;
 use PHPUnit\Framework\TestCase;
 use stdClass;
@@ -14,8 +16,6 @@ class BadConfigException extends Exception
 
 class ConfigurableMain
 {
-    use Configurable;
-
     public $badClass1;
     public $badClass2;
     public $badClass3;
@@ -27,6 +27,9 @@ class ConfigurableMain
      * @var stdClass
      */
     public $genericForSubConfiguration;
+
+    private static Hydrator $hydrator;
+
     public $ignored;
     public $mappedClass;
     public $prop1;
@@ -38,98 +41,27 @@ class ConfigurableMain
     public $subCallable;
     public $subClass;
     public $subClass2;
+    public $subClassArray;
     public $subDynamic;
-    public $validationFails = [];
 
-    protected function addToCallable($obj)
+    public function addToCallable($obj)
     {
         $this->subCallable[] = $obj;
     }
 
-    /**
-     * Map a property to a class.
-     * @param string $property The current class property name.
-     * @param mixed $value The value to be stored in the property, made available for inspection.
-     * @return mixed An object containing a class name and key, or false
-     * @codeCoverageIgnore
-     */
-    protected function configureClassMap(string $property, $value)
+    public function getErrors(): array
     {
-        static $classMap = [
-            'badClass1' => ['className' => 'ThisClassDoesNotExist'],
-            // badClass2 is set up below.
-            'badClass3' => ['className' => ['not', 'callable']],
-            // badClass4 is set up below.
-            'subAssoc' => ['className' => ConfigurableSub::class, 'key' => 'key'],
-            'subAssocDup' => ['className' => ConfigurableSub::class, 'key' => 'key', 'allowDups' => true],
-            'subAssocP' => ['className' => ConfigurableSub::class, 'key' => 'getKeyP', 'keyIsMethod' => true],
-            'subClass' => ['className' => ConfigurableSub::class],
-        ];
-        $result = false;
-        switch ($property) {
-            case 'badClass2':
-                $result = ['ThisClassIsNotAString'];
-                break;
-            case 'badClass4':
-                // Test object in place of className
-                $result = new stdClass;
-                $result->className = (object) ['totally' => 'invalid'];
-                break;
-            case 'subAssoc':
-                // return an array instead of object
-                $result = $classMap[$property];
-                break;
-            case 'subCallable':
-                $result = new stdClass;
-                $result->key = [$this, 'addToCallable'];
-                $result->className = ConfigurableSub::class;
-                break;
-            case 'subClass2':
-                // Test simple class name in a string
-                $result = ConfigurableSub::class;
-                break;
-            case 'subDynamic':
-                $result = new stdClass;
-                $result->key = 'key';
-                $result->className = function ($value) {
-                    if (is_array($value)) {
-                        $ext = $value['type'];
-                    } else {
-                        $ext = $value->type;
-                    }
-                    return 'Abivia\Configurable\Tests\Php72\ConfigurableType'
-                        . ucfirst($ext);
-                };
-                break;
-            default:
-                if (isset($classMap[$property])) {
-                    $result = (object) $classMap[$property];
-                }
-                break;
+        if (!isset(self::$hydrator)) {
+            self::hydrateInit();
         }
-        return $result;
+        return self::$hydrator->getErrors();
     }
 
-    protected function configureComplete()
+    public function hydrate($config, $options = []): bool
     {
-        if ($this->genericForSubConfiguration !== null) {
-            // Convert the sub property into a ConfigurablesSub
-            if (isset($this->genericForSubConfiguration->subClass)) {
-                $obj = new ConfigurableSub();
-                if (!$obj->configure($this->genericForSubConfiguration->subClass, $this->configureOptions)) {
-                    $this->configureErrors = array_merge(
-                        $this->configureErrors, $obj->configureGetErrors()
-                    );
-                    return false;
-                }
-                $this->genericForSubConfiguration->subClass = $obj;
-            }
+        if (!isset(self::$hydrator)) {
+            self::hydrateInit();
         }
-        return true;
-    }
-
-    protected function configureInitialize(&$config)
-    {
         if (is_object($config) && isset($config->subClass) && is_array($config->subClass)) {
             foreach ($config->subClass as $key => $value) {
                 if (!is_string($value)) {
@@ -147,43 +79,94 @@ class ConfigurableMain
                 $config['subClass'][$key] = ['subProp1' => $value];
             }
         }
-
-        $this->configureOptions['_custom'] = 'appOptions';
-    }
-
-    protected function configurePropertyBlock(string $property)
-    {
-        return in_array($property, ['doNotConfigure']);
-    }
-
-    protected function configurePropertyIgnore(string $property)
-    {
-        return $property == 'ignored';
-    }
-
-    protected function configurePropertyMap(string $property) {
-        if ($property === 'class') {
-            $property = 'mappedClass';
-        } elseif (substr($property, 0, 5) == 'array') {
-            $property = ['propArray', substr($property, 5)];
+        $options['_custom'] = 'appOptions';
+        $result = self::$hydrator->hydrate($this, $config, $options);
+        if ($result && $this->genericForSubConfiguration !== null) {
+            // Convert the sub property into a ConfigurableSub
+            if (isset($this->genericForSubConfiguration->subClass)) {
+                foreach ($this->genericForSubConfiguration->subClass as $key => $config) {
+                    $obj = new ConfigurableSub();
+                    $result = $obj->hydrate($config, self::$hydrator->getOptions());
+                    if (!$result) {
+    //                  $this->configureErrors = array_merge(
+    //                      $this->configureErrors, $obj->configureGetErrors()
+    //                  );
+                        return false;
+                    }
+                    $this->genericForSubConfiguration->subClass[$key] = $obj;
+                }
+            }
         }
-        return $property;
-    }
 
-    protected function configureValidate(string $property, &$value)
-    {
-        switch ($property) {
-            case 'prop1':
-                $result = in_array($value, ['red', 'green', 'blue']);
-                break;
-            default:
-                $result = true;
-        }
-        if (!$result) {
-            $this->configureLogError($property . ' has invalid value ' . $value
-                . ' in ' . __CLASS__);
-        }
         return $result;
+    }
+
+    /**
+     * Create and initialize the hydrator.
+     *
+     * @throws \Abivia\Hydration\HydrationException
+     * @throws \ReflectionException
+     */
+    private static function hydrateInit()
+    {
+        self::$hydrator = Hydrator::make()
+            ->addProperty(Property::make('badClass1', 'ThisClassDoesNotExist'))
+            ->addProperty(
+                Property::make('class')
+                    ->as('mappedClass')
+                    //->bind(ConfigurableSub::class)
+            )
+            ->addProperty(Property::make('doNotConfigure')->block())
+            ->addProperty(Property::make('ignored')->ignore())
+            ->addProperty(
+                Property::make('prop1')
+                    ->validate(function ($value) {
+                        return in_array($value, ['red', 'green', 'blue']);
+                    })
+            )
+            ->addProperty(
+                Property::make('propArray')
+                    ->toArray()
+            )
+            ->addProperty(
+                Property::make('subAssoc')
+                    ->key('key')
+                    ->bind(ConfigurableSub::class)
+            )
+            ->addProperty(
+                Property::make('subAssocDup')
+                    ->key('key')
+                    ->allowDuplicates()
+                    ->bind(ConfigurableSub::class)
+            )
+            ->addProperty(
+                Property::make('subAssocP')
+                    ->key(function ($obj, $value) {
+                        return $obj->getKeyP($value);
+                    })
+                    ->bind(ConfigurableSub::class)
+            )
+            ->addProperty(
+                Property::make('subCallable')
+                    ->setter('addToCallable')
+                    ->bind(ConfigurableSub::class)
+            )
+            ->addProperty(
+                Property::make('subDynamic')
+                    ->key('key')
+                    ->with(function ($value) {
+                        return __NAMESPACE__ . '\\ConfigurableType' . ucfirst($value->type);
+                    })
+                    ->bind(ConfigurableSub::class)
+            )
+            ->addProperty(Property::make('subClass', ConfigurableSub::class))
+            ->addProperty(Property::make('subClass2', ConfigurableSub::class))
+            ->addProperty(Property::make('subClassArray')
+                ->key()
+                ->bind(ConfigurableSub::class)
+            )
+            ->bind(self::class)
+        ;
     }
 
 }
@@ -194,31 +177,46 @@ class ConfigurableMain
  */
 class ConfigurableSub
 {
-    use Configurable;
+    private static Hydrator $hydrator;
 
-    public $conflicted;
     public $key;
     protected $keyP;
     public $notConfigurable;
     public $subProp1;
 
-    protected function configurePropertyBlock($property): bool
+    public function getErrors(): array
     {
-        return in_array($property, ['conflicted']);
+        return self::$hydrator->getErrors();
     }
 
-    protected function configurePropertyAllow($property): bool
+    public function checkOption($name)
     {
-        return in_array($property, ['conflicted', 'key', 'keyP', 'subProp1']);
-    }
-
-    public function checkConfigurableOption($name)
-    {
-        return $this->configureOptions[$name];
+        return self::$hydrator->getOptions()[$name];
     }
 
     public function getKeyP() {
         return $this->keyP;
+    }
+
+    public function hydrate($config, $options = []): bool
+    {
+        if (!isset(self::$hydrator)) {
+            self::hydrateInit();
+        }
+        $result = self::$hydrator->hydrate($this, $config, $options);
+
+        return $result;
+    }
+
+    private static function hydrateInit()
+    {
+        self::$hydrator = Hydrator::make()
+            ->addProperty(
+                Property::make('notConfigurable')
+                    ->block()
+            )
+            ->bind(self::class, Hydrator::ALL_NONSTATIC_PROPERTIES)
+        ;
     }
 
 }
@@ -228,11 +226,18 @@ class ConfigurableSub
  */
 class ConfigurableTypeA
 {
-    use Configurable;
-
     public $key;
     public $propA;
     public $type;
+
+    public function hydrate($config, $options = []): bool
+    {
+        $this->key ??= $config->key;
+        $this->propA ??= $config->propA;
+        $this->type ??= $config->type;
+        return true;
+    }
+
 }
 
 /**
@@ -240,11 +245,18 @@ class ConfigurableTypeA
  */
 class ConfigurableTypeB
 {
-    use Configurable;
-
     public $key;
     public $propB;
     public $type;
+
+    public function hydrate($config, $options = []): bool
+    {
+        $this->key ??= $config->key;
+        $this->propB ??= $config->propB;
+        $this->type ??= $config->type;
+        return true;
+    }
+
 }
 
 class ConfigurableTest extends TestCase
@@ -252,19 +264,23 @@ class ConfigurableTest extends TestCase
 
     static $configSource = [
         'testBadScalar' => '"invalid"',
-        'testNestedDoesNotCorruptSource' => '{"genericForSubConfiguration":{"subClass":[{"subProp1":"e0"},{"subProp1":"e1"}]}}',
+
         'testPropertyMapping' => '{"class":"purple"}',
-        'testPropertyMappingArray' => '{"array1":"one", "array5":"five"}',
+        'testPropertyMappingArray' => '{"propArray": {"array1":"one", "array5":"five"}}',
+
         'testSimpleEmptyArray' => '{"prop2":[]}',
         'testSimpleIgnoreRelaxed' => '{"ignored":"purple"}',
         'testSimpleIgnoreStrict' => '{"ignored":"purple"}',
         'testSimpleInvalid' => '{"prop1":"purple"}',
+
         'testSimpleUndeclaredRelaxed' => '{"undeclared":"purple"}',
         'testSimpleUndeclaredStrict' => '{"undeclared":"purple"}',
         'testSimpleUndeclaredStrictException' => '{"undeclared":"purple"}',
+
         'testSimpleValid' => '{"prop1":"blue"}',
         'testSimpleValidStrictDefault' => '{"prop1":"blue","bonus":true}',
-        'testSubclassArrayNew' => '{"subClass":[{"subProp1":"e0"},{"subProp1":"e1"}]}',
+
+        'testSubclassArrayNew' => '{"subClassArray":[{"subProp1":"e0"},{"subProp1":"e1"}]}',
         'testSubclassArrayNewAssoc' => '{"subAssoc":[{"key":"item0","subProp1":"e0"},{"key":"item1","subProp1":"e1"}]}',
         'testSubclassArrayNewAssocCast' => '{"subAssoc":{"key":"item0","subProp1":"e0"}}',
         'testSubclassArrayNewAssocDupKeys' => '{"subAssocDup":[{"key":"item0","subProp1":"e0"},{"key":"item0","subProp1":"e1"}]}',
@@ -325,13 +341,12 @@ class ConfigurableTest extends TestCase
         foreach (['json', 'yaml'] as $format) {
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
-            $this->assertFalse($obj->configure($config));
-            $this->assertEquals(
-                [
-                    'Unexpected scalar value in'
-                    . ' Abivia\Configurable\Tests\Php72\ConfigurableMain',
-                ],
-                $obj->configureGetErrors()
+            $this->assertFalse($obj->hydrate($config));
+            $errors = $obj->getErrors();
+            $this->assertCount(1, $errors);
+            $this->assertStringContainsStringIgnoringCase(
+                'Unexpected scalar value',
+                $errors[0]
             );
         }
 	}
@@ -342,9 +357,13 @@ class ConfigurableTest extends TestCase
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
             $obj->prop1 = 'uninitialized';
-            $this->assertTrue($obj->configure($config));
+            $result = $obj->hydrate($config);
+            if (!$result) {
+                print_r($obj->getErrors());
+            }
+            $this->assertTrue($result);
             $this->assertEquals('blue', $obj->prop1);
-            $this->assertEquals([], $obj->configureGetErrors());
+            $this->assertEquals([], $obj->getErrors());
         }
 	}
 
@@ -357,9 +376,9 @@ class ConfigurableTest extends TestCase
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
             $obj->prop1 = 'uninitialized';
-            $this->assertTrue($obj->configure($config, []));
-            $this->assertEquals('blue', $obj->prop1);
-            $this->assertEquals([], $obj->configureGetErrors());
+            $this->expectException(HydrationException::class);
+            $this->expectExceptionMessage('Undefined property');
+            $obj->hydrate($config, []);
         }
 	}
 
@@ -369,15 +388,11 @@ class ConfigurableTest extends TestCase
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
             $obj->prop1 = 'uninitialized';
-            $this->assertFalse($obj->configure($config));
+            $this->assertFalse($obj->hydrate($config));
             $this->assertEquals('uninitialized', $obj->prop1);
-            $this->assertEquals(
-                [
-                    'prop1 has invalid value purple in'
-                    . ' Abivia\Configurable\Tests\Php72\ConfigurableMain',
-                    'Validation failed on property "prop1"',
-                ],
-                $obj->configureGetErrors()
+            $this->assertStringContainsStringIgnoringCase(
+                'invalid value',
+                $obj->getErrors()[0]
             );
         }
 	}
@@ -391,9 +406,9 @@ class ConfigurableTest extends TestCase
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
             $obj->prop2 = 'uninitialized';
-            $this->assertTrue($obj->configure($config));
+            $this->assertTrue($obj->hydrate($config));
             $this->assertEquals([], $obj->prop2);
-            $this->assertEquals([], $obj->configureGetErrors());
+            $this->assertEquals([], $obj->getErrors());
         }
 	}
 
@@ -403,9 +418,9 @@ class ConfigurableTest extends TestCase
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
             $obj->prop1 = 'uninitialized';
-            $this->assertTrue($obj->configure($config));
+            $this->assertTrue($obj->hydrate($config, ['strict' => false]));
             $this->assertEquals('uninitialized', $obj->prop1);
-            $this->assertEquals([], $obj->configureGetErrors());
+            $this->assertEquals([], $obj->getErrors());
         }
 	}
 
@@ -418,13 +433,9 @@ class ConfigurableTest extends TestCase
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
             $obj->prop1 = 'uninitialized';
-            $this->assertFalse($obj->configure($config, true));
-            $this->assertEquals('uninitialized', $obj->prop1);
-            $this->assertEquals(
-                ['Undefined property "undeclared" in class'
-                    . ' Abivia\Configurable\Tests\Php72\ConfigurableMain'],
-                $obj->configureGetErrors()
-            );
+            $this->expectException(HydrationException::class);
+            $this->expectExceptionMessage('Undefined property');
+            $obj->hydrate($config, ['strict' => true]);
         }
 	}
 
@@ -438,9 +449,9 @@ class ConfigurableTest extends TestCase
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
             $obj->ignored = 'uninitialized';
-            $this->assertTrue($obj->configure($config));
+            $this->assertTrue($obj->hydrate($config));
             $this->assertEquals('uninitialized', $obj->ignored);
-            $this->assertEquals([], $obj->configureGetErrors());
+            $this->assertEquals([], $obj->getErrors());
         }
 	}
 
@@ -454,9 +465,9 @@ class ConfigurableTest extends TestCase
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
             $obj->ignored = 'uninitialized';
-            $this->assertTrue($obj->configure($config, true));
+            $this->assertTrue($obj->hydrate($config, ['strict' => true]));
             $this->assertEquals('uninitialized', $obj->ignored);
-            $this->assertEquals([], $obj->configureGetErrors());
+            $this->assertEquals([], $obj->getErrors());
         }
 	}
 
@@ -466,19 +477,9 @@ class ConfigurableTest extends TestCase
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
             $obj->prop1 = 'uninitialized';
-            try {
-                $obj->configure($config, BadConfigException::class);
-                $this->assertEquals([], $obj->configureGetErrors());
-                $success = true;
-            } catch (BadConfigException $ex) {
-                $success = false;
-                $this->assertEquals(
-                    'Undefined property "undeclared" in class'
-                    . ' Abivia\Configurable\Tests\Php72\ConfigurableMain',
-                    $ex->getMessage()
-                );
-            }
-            $this->assertTrue($success === false);
+            $this->expectException(HydrationException::class);
+            $this->expectExceptionMessage('Undefined property');
+            $obj->hydrate($config, ['strict' => true]);
         }
 	}
 
@@ -487,48 +488,55 @@ class ConfigurableTest extends TestCase
         $config = self::getConfig(__FUNCTION__, 'json');
         $obj = new ConfigurableMain();
         $obj->mappedClass = 'uninitialized';
-        $this->assertTrue($obj->configure($config));
+        $result = $obj->hydrate($config);
+        if (!$result) {
+            print_r($obj->getErrors());
+        }
+        $this->assertTrue($result);
         $this->assertEquals('purple', $obj->mappedClass);
-        $this->assertEquals([], $obj->configureGetErrors());
+        $this->assertEquals([], $obj->getErrors());
 	}
 
 	public function testPropertyMappingArray()
     {
         $config = self::getConfig(__FUNCTION__, 'json');
         $obj = new ConfigurableMain();
-        $this->assertTrue($obj->configure($config));
-        $this->assertEquals(['1' => 'one', '5' => 'five'], $obj->propArray);
-        $this->assertEquals([], $obj->configureGetErrors());
+        $result = $obj->hydrate($config);
+        if (!$result) {
+            print_r($obj->getErrors());
+        }
+        $this->assertTrue($result);
+        $this->assertEquals(['array1' => 'one', 'array5' => 'five'], $obj->propArray);
+        $this->assertEquals([], $obj->getErrors());
 	}
 
     /**
-     * A relaxed attempt to set a blocked property merely doesn't set the property.
+     * An attempt to set a blocked property generates an error in relaxed mode.
      */
 	public function testPropertyAllow()
     {
         $config = json_decode('{"notConfigurable":"purple"}');
         $obj = new ConfigurableSub();
         $obj->notConfigurable = 'uninitialized';
-        $this->assertTrue($obj->configure($config));
+        $result = $obj->hydrate($config, ['strict' => false]);
+        $this->assertFalse($result);
         $this->assertEquals('uninitialized', $obj->notConfigurable);
-        $this->assertEquals([], $obj->configureGetErrors());
+        $this->assertStringContainsStringIgnoringCase(
+            'prohibited', $obj->getErrors()[0]
+        );
 	}
 
     /**
-     * A strict attempt to set a blocked property fails.
+     * A strict attempt to set a blocked property causes an exception.
      */
 	public function testPropertyAllowStrict()
     {
         $config = json_decode('{"notConfigurable":"purple"}');
         $obj = new ConfigurableSub();
         $obj->notConfigurable = 'uninitialized';
-        $this->assertFalse($obj->configure($config, true));
-        $this->assertEquals('uninitialized', $obj->notConfigurable);
-        $this->assertEquals(
-            ['Undefined property "notConfigurable" in class'
-                . ' Abivia\Configurable\Tests\Php72\ConfigurableSub'],
-            $obj->configureGetErrors()
-        );
+        $this->expectException(HydrationException::class);
+        $this->expectExceptionMessage('prohibited');
+        $obj->hydrate($config, ['strict' => true]);
 	}
 
     /**
@@ -539,30 +547,9 @@ class ConfigurableTest extends TestCase
         $config = json_decode('{"doNotConfigure":"purple"}');
         $obj = new ConfigurableMain();
         $obj->doNotConfigure = 'uninitialized';
-        $this->assertFalse($obj->configure($config, true));
-        $this->assertEquals('uninitialized', $obj->doNotConfigure);
-        $this->assertEquals(
-            ['Undefined property "doNotConfigure" in class'
-                . ' Abivia\Configurable\Tests\Php72\ConfigurableMain'],
-            $obj->configureGetErrors()
-        );
-	}
-
-    /**
-     * Properties both blocked and allowed should be blocked.
-     */
-	public function testPropertyConflicted()
-    {
-        $config = json_decode('{"conflicted":"purple"}');
-        $obj = new ConfigurableSub();
-        $obj->conflicted = 'uninitialized';
-        $this->assertFalse($obj->configure($config, true));
-        $this->assertEquals('uninitialized', $obj->conflicted);
-        $this->assertEquals(
-            ['Undefined property "conflicted" in class'
-                . ' Abivia\Configurable\Tests\Php72\ConfigurableSub'],
-            $obj->configureGetErrors()
-        );
+        $this->expectException(HydrationException::class);
+        $this->expectExceptionMessage('prohibited');
+        $obj->hydrate($config, ['strict' => true]);
 	}
 
     /**
@@ -575,13 +562,14 @@ class ConfigurableTest extends TestCase
             $obj = new ConfigurableMain();
             $obj->subClass = new ConfigurableSub();
             $obj->subClass->subProp1 = 'uninitialized';
-            $this->assertTrue($obj->configure($config));
+            $this->assertTrue($obj->hydrate($config));
             $this->assertInstanceOf(ConfigurableSub::class, $obj->subClass);
             $this->assertEquals('subprop', $obj->subClass->subProp1);
-            $this->assertEquals([], $obj->configureGetErrors());
+            $this->assertEquals([], $obj->getErrors());
             // See if our custom option got passed in
             $this->assertEquals(
-                'appOptions', $obj->subClass->checkConfigurableOption('_custom')
+                'appOptions',
+                $obj->subClass->checkOption('_custom')
             );
         }
 	}
@@ -595,14 +583,14 @@ class ConfigurableTest extends TestCase
             $config = self::getConfig('testSubclassScalar', $format);
             $obj = new ConfigurableMain();
             $obj->prop1 = 'uninitialized';
-            $result = $obj->configure($config);
+            $result = $obj->hydrate($config);
             $this->assertTrue(
                 $result,
-                $format . "\n" . implode("\n", $obj->configureGetErrors())
+                $format . "\n" . implode("\n", $obj->getErrors())
             );
             $this->assertInstanceOf(ConfigurableSub::class, $obj->subClass);
             $this->assertEquals('subprop', $obj->subClass->subProp1);
-            $this->assertEquals([], $obj->configureGetErrors());
+            $this->assertEquals([], $obj->getErrors());
         }
 	}
 
@@ -611,16 +599,9 @@ class ConfigurableTest extends TestCase
         $config = json_decode('{"subClass":{"badprop":"subprop"}}');
         $obj = new ConfigurableMain();
         $obj->prop1 = 'uninitialized';
-        $this->assertFalse($obj->configure($config, true));
-        $this->assertInstanceOf(ConfigurableSub::class, $obj->subClass);
-        $this->assertEquals(
-            [
-                'Unable to configure property "subClass":',
-                'Undefined property "badprop" in class'
-                . ' Abivia\Configurable\Tests\Php72\ConfigurableSub',
-            ],
-            $obj->configureGetErrors()
-        );
+        $this->expectException(HydrationException::class);
+        $this->expectExceptionMessage('Undefined property');
+        $obj->hydrate($config, ['strict' => true]);
 	}
 
     /**
@@ -632,26 +613,27 @@ class ConfigurableTest extends TestCase
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
             $obj->prop1 = 'uninitialized';
-            $this->assertTrue($obj->configure($config));
+            $this->assertTrue($obj->hydrate($config));
             $this->assertInstanceOf(ConfigurableSub::class, $obj->subClass2);
             $this->assertEquals('subprop', $obj->subClass2->subProp1);
-            $this->assertEquals([], $obj->configureGetErrors());
+            $this->assertEquals([], $obj->getErrors());
         }
 	}
 
 	public function testSubclassArrayNew()
     {
+        // {"subClassArray":[{"subProp1":"e0"},{"subProp1":"e1"}]}
         foreach (['json', 'yaml'] as $format) {
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
             $obj->prop1 = 'uninitialized';
-            $this->assertTrue($obj->configure($config), $format);
-            $this->assertIsArray($obj->subClass, $format);
-            $this->assertEquals(2, count($obj->subClass), $format);
-            $this->assertInstanceOf(ConfigurableSub::class, $obj->subClass[0], $format);
-            $this->assertEquals('e0', $obj->subClass[0]->subProp1, $format);
-            $this->assertEquals('e1', $obj->subClass[1]->subProp1, $format);
-            $this->assertEquals([], $obj->configureGetErrors(), $format);
+            $this->assertTrue($obj->hydrate($config), $format);
+            $this->assertIsArray($obj->subClassArray, $format);
+            $this->assertCount(2, $obj->subClassArray, $format);
+            $this->assertInstanceOf(ConfigurableSub::class, $obj->subClassArray[0], $format);
+            $this->assertEquals('e0', $obj->subClassArray[0]->subProp1, $format);
+            $this->assertEquals('e1', $obj->subClassArray[1]->subProp1, $format);
+            $this->assertEquals([], $obj->getErrors(), $format);
         }
 	}
 
@@ -664,14 +646,14 @@ class ConfigurableTest extends TestCase
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
             $obj->prop1 = 'uninitialized';
-            $this->assertTrue($obj->configure($config));
+            $this->assertTrue($obj->hydrate($config));
             $this->assertIsArray($obj->subAssoc);
             $this->assertEquals(2, count($obj->subAssoc));
             $this->assertTrue(isset($obj->subAssoc['item0']));
             $this->assertInstanceOf(ConfigurableSub::class, $obj->subAssoc['item0']);
             $this->assertEquals('e0', $obj->subAssoc['item0']->subProp1);
             $this->assertEquals('e1', $obj->subAssoc['item1']->subProp1);
-            $this->assertEquals([], $obj->configureGetErrors());
+            $this->assertEquals([], $obj->getErrors());
         }
 	}
 
@@ -684,13 +666,13 @@ class ConfigurableTest extends TestCase
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
             $obj->prop1 = 'uninitialized';
-            $this->assertTrue($obj->configure($config));
+            $this->assertTrue($obj->hydrate($config));
             $this->assertIsArray($obj->subAssoc);
             $this->assertEquals(1, count($obj->subAssoc));
             $this->assertTrue(isset($obj->subAssoc['item0']));
             $this->assertInstanceOf(ConfigurableSub::class, $obj->subAssoc['item0']);
             $this->assertEquals('e0', $obj->subAssoc['item0']->subProp1);
-            $this->assertEquals([], $obj->configureGetErrors());
+            $this->assertEquals([], $obj->getErrors());
         }
 	}
 
@@ -703,7 +685,7 @@ class ConfigurableTest extends TestCase
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
             $obj->prop1 = 'uninitialized';
-            $this->assertTrue($obj->configure($config));
+            $this->assertTrue($obj->hydrate($config));
             $this->assertIsArray($obj->subAssocDup);
             $this->assertEquals(1, count($obj->subAssocDup));
             $this->assertTrue(isset($obj->subAssocDup['item0']));
@@ -711,7 +693,7 @@ class ConfigurableTest extends TestCase
             $this->assertEquals('e1', $obj->subAssocDup['item0']->subProp1);
             $this->assertEquals(
                 [],
-                $obj->configureGetErrors()
+                $obj->getErrors()
             );
         }
     }
@@ -725,19 +707,15 @@ class ConfigurableTest extends TestCase
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
             $obj->prop1 = 'uninitialized';
-            $this->assertFalse($obj->configure($config));
+            $this->assertFalse($obj->hydrate($config));
             $this->assertIsArray($obj->subAssoc);
-            $this->assertEquals(1, count($obj->subAssoc));
+            $this->assertCount(1, $obj->subAssoc);
             $this->assertTrue(isset($obj->subAssoc['item0']));
             $this->assertInstanceOf(ConfigurableSub::class, $obj->subAssoc['item0']);
             $this->assertEquals('e0', $obj->subAssoc['item0']->subProp1);
-            $this->assertEquals(
-                [
-                    'Unable to configure property "subAssoc":',
-                    'Duplicate key "item0" configuring "subAssoc" in class'
-                    . ' Abivia\Configurable\Tests\Php72\ConfigurableMain',
-                ],
-                $obj->configureGetErrors()
+            $this->assertStringContainsStringIgnoringCase(
+                'Duplicate key',
+                $obj->getErrors()[0]
             );
         }
     }
@@ -752,14 +730,14 @@ class ConfigurableTest extends TestCase
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
             $obj->prop1 = 'uninitialized';
-            $this->assertTrue($obj->configure($config));
+            $this->assertTrue($obj->hydrate($config));
             $this->assertIsArray($obj->subAssocP);
             $this->assertEquals(2, count($obj->subAssocP));
             $this->assertTrue(isset($obj->subAssocP['item0']));
             $this->assertInstanceOf(ConfigurableSub::class, $obj->subAssocP['item0']);
             $this->assertEquals('e0', $obj->subAssocP['item0']->subProp1);
             $this->assertEquals('e1', $obj->subAssocP['item1']->subProp1);
-            $this->assertEquals([], $obj->configureGetErrors());
+            $this->assertEquals([], $obj->getErrors());
         }
 	}
 
@@ -771,10 +749,10 @@ class ConfigurableTest extends TestCase
         foreach (['json', 'yaml'] as $format) {
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
-            $this->assertTrue($obj->configure($config));
+            $this->assertTrue($obj->hydrate($config));
             $this->assertIsArray($obj->subClass);
             $this->assertEquals(0, count($obj->subClass));
-            $this->assertEquals([], $obj->configureGetErrors());
+            $this->assertEquals([], $obj->getErrors());
         }
 	}
 
@@ -783,19 +761,9 @@ class ConfigurableTest extends TestCase
         $config = json_decode('{"subClass":[{"subProp1":"e0"},{"badprop":"e1"}]}');
         $obj = new ConfigurableMain();
         $obj->prop1 = 'uninitialized';
-        $this->assertFalse($obj->configure($config, true));
-        $this->assertIsArray($obj->subClass);
-        $this->assertEquals(2, count($obj->subClass));
-        $this->assertInstanceOf(ConfigurableSub::class, $obj->subClass[0]);
-        $this->assertEquals('e0', $obj->subClass[0]->subProp1);
-        $this->assertEquals(
-            [
-                'Unable to configure property "subClass":',
-                'Undefined property "badprop" in class'
-                . ' Abivia\Configurable\Tests\Php72\ConfigurableSub',
-            ],
-            $obj->configureGetErrors()
-        );
+        $this->expectException(HydrationException::class);
+        $this->expectExceptionMessage('Undefined property');
+        $obj->hydrate($config, ['strict' => true]);
 	}
 
     /**
@@ -807,14 +775,14 @@ class ConfigurableTest extends TestCase
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
             $obj->prop1 = 'uninitialized';
-            $this->assertTrue($obj->configure($config), $format);
+            $this->assertTrue($obj->hydrate($config), $format);
             $this->assertIsArray($obj->subClass, $format);
             $this->assertEquals(3, count($obj->subClass), $format);
             $this->assertInstanceOf(ConfigurableSub::class, $obj->subClass[0], $format);
             $this->assertEquals('e0', $obj->subClass[0]->subProp1, $format);
             $this->assertEquals('e1', $obj->subClass[1]->subProp1, $format);
             $this->assertEquals('e2', $obj->subClass[2]->subProp1, $format);
-            $this->assertEquals([], $obj->configureGetErrors(), $format);
+            $this->assertEquals([], $obj->getErrors(), $format);
         }
 	}
 
@@ -825,82 +793,24 @@ class ConfigurableTest extends TestCase
     {
         $config = json_decode('{"badClass1":{"subProp1":"e0"}}');
         $obj = new ConfigurableMain();
-        $this->assertFalse($obj->configure($config), true);
-        $this->assertEquals(
-            [
-                'Unable to configure property "badClass1":',
-                'Undefined class "ThisClassDoesNotExist" configuring "badClass1" in class'
-                . ' Abivia\Configurable\Tests\Php72\ConfigurableMain'
-            ],
-            $obj->configureGetErrors()
-        );
-	}
-
-    /**
-     * Case where a requested class is not a string
-     */
-	public function testSubclassBad2()
-    {
-        $config = json_decode('{"badClass2":{"subProp1":"e0"}}');
-        $obj = new ConfigurableMain();
-        $this->assertFalse($obj->configure($config), true);
-        $this->assertEquals(
-            [
-                'Unable to configure property "badClass2":',
-                'Invalid class specification configuring "badClass2" in class'
-                . ' Abivia\Configurable\Tests\Php72\ConfigurableMain'
-            ],
-            $obj->configureGetErrors()
-        );
-	}
-
-    /**
-     * Case where we try to use a bad callable for a subclass
-     */
-	public function testSubclassBad3()
-    {
-        $config = json_decode('{"badClass3":{"subProp1":"e0"}}');
-        $obj = new ConfigurableMain();
-        $this->assertFalse($obj->configure($config), true);
-        $this->assertEquals(
-            [
-                'Unable to configure property "badClass3":',
-                'Bad callable [not, callable] configuring "badClass3" in class'
-                . ' Abivia\Configurable\Tests\Php72\ConfigurableMain'
-            ],
-            $obj->configureGetErrors()
-        );
-	}
-
-    /**
-     * Case where we try to use an object as a callable
-     */
-	public function testSubclassBad4()
-    {
-        $config = json_decode('{"badClass4":{"subProp1":"e0"}}');
-        $obj = new ConfigurableMain();
-        $this->assertFalse($obj->configure($config), true);
-        $this->assertEquals(
-            [
-                'Unable to configure property "badClass4":',
-                'Unexpected "stdClass" Object configuring "badClass4" in class'
-                . ' Abivia\Configurable\Tests\Php72\ConfigurableMain'
-            ],
-            $obj->configureGetErrors()
-        );
+        $this->expectException(HydrationException::class);
+        $this->expectExceptionMessage('Unable to load');
+        $result = $obj->hydrate($config);
 	}
 
 	public function testSubclassCallableNew()
     {
-        $config = json_decode('{"subCallable":[{"subProp1":"e0"},{"subProp1":"e1"}]}');
+        $config = json_decode('{"subCallable":
+            [{"subProp1":"e0"},{"subProp1":"e1"}]
+        }');
         $obj = new ConfigurableMain();
-        $this->assertTrue($obj->configure($config));
+        $this->assertTrue($obj->hydrate($config));
         $this->assertIsArray($obj->subCallable);
-        $this->assertEquals(2, count($obj->subCallable));
+        $this->assertCount(2, $obj->subCallable);
         $this->assertInstanceOf(ConfigurableSub::class, $obj->subCallable[0]);
         $this->assertEquals('e0', $obj->subCallable[0]->subProp1);
         $this->assertEquals('e1', $obj->subCallable[1]->subProp1);
-        $this->assertEquals([], $obj->configureGetErrors());
+        $this->assertEquals([], $obj->getErrors());
 	}
 
     /**
@@ -912,15 +822,19 @@ class ConfigurableTest extends TestCase
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
             $obj->prop1 = 'uninitialized';
-            $this->assertTrue($obj->configure($config));
+            $result = $obj->hydrate($config);
+            if (!$result) {
+                print_r($obj->getErrors());
+            }
+            $this->assertTrue($result);
             $this->assertIsArray($obj->subDynamic);
-            $this->assertEquals(2, count($obj->subDynamic));
+            $this->assertCount(2, $obj->subDynamic);
             $this->assertTrue(isset($obj->subDynamic['item0']));
             $this->assertInstanceOf(ConfigurableTypeA::class, $obj->subDynamic['item0']);
             $this->assertEquals('e0', $obj->subDynamic['item0']->propA);
             $this->assertInstanceOf(ConfigurableTypeB::class, $obj->subDynamic['item1']);
             $this->assertEquals('e1', $obj->subDynamic['item1']->propB);
-            $this->assertEquals([], $obj->configureGetErrors());
+            $this->assertEquals([], $obj->getErrors());
         }
 	}
 
@@ -929,10 +843,16 @@ class ConfigurableTest extends TestCase
      */
     public function testNestedDoesNotCorruptSource()
     {
-        $source = json_decode(self::$configSource[__FUNCTION__]);
-        $config =  json_decode(self::$configSource[__FUNCTION__]);
+        $json = '{
+            "genericForSubConfiguration":{
+                "subClass":[{"subProp1":"e0"},{"subProp1":"e1"}]
+            }
+        }';
+
+        $source = json_decode($json);
+        $config = json_decode($json);
         $obj = new ConfigurableMain();
-        $this->assertTrue($obj->configure($config));
+        $this->assertTrue($obj->hydrate($config));
         $this->assertEquals($source, $config);
     }
 

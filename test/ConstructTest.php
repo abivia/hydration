@@ -1,20 +1,22 @@
 <?php
 
-namespace Abivia\Configurable\Tests\Php74;
+namespace Abivia\Configurable\Tests;
 
-use Abivia\Configurable\Configurable;
+use Abivia\Hydration\HydrationException;
+use Abivia\Hydration\Hydrator;
+use Abivia\Hydration\Property;
 use DateInterval;
 use PHPUnit\Framework\TestCase;
 use stdClass;
 
 class ConfigConstruct
 {
-    use Configurable;
-
     /**
      * @var Constructable
      */
     public ?Constructable $anObject = null;
+
+    private static Hydrator $hydrator;
 
     /**
      *
@@ -26,22 +28,44 @@ class ConfigConstruct
 
     public $nope;
 
-    protected function configureClassMap(string $property, $value)
+    public function getErrors(): array
     {
-        if ($property === 'anObject') {
-            return ['className' => Constructable::class, 'constructUnpack' => true];
-        }
-        if ($property === 'anInterval') {
-            return ['className' => 'DateInterval', 'construct' => true];
-        }
-        if ($property === 'badConstruct') {
-            return ['className' => Constructable::class, 'constructUnpack' => true];
-        }
-        if ($property === 'nope') {
-            return ['className' => 'Nonexistent', 'construct' => true];
-        }
-        return false;
+        return self::$hydrator->getErrors();
     }
+
+    public function hydrate($config, $options = []): bool
+    {
+        if (!isset(self::$hydrator)) {
+            self::hydrateInit();
+        }
+        $result = self::$hydrator->hydrate($this, $config, $options);
+
+        return $result;
+    }
+
+    private static function hydrateInit()
+    {
+        self::$hydrator = Hydrator::make()
+            ->addProperty(
+                Property::make('anObject')
+                    ->construct(Constructable::class, true)
+            )
+            ->addProperty(
+                Property::make('anInterval')
+                    ->construct(DateInterval::class)
+            )
+            ->addProperty(
+                Property::make('badConstruct')
+                    ->construct(Constructable::class, true)
+            )
+            ->addProperty(
+                Property::make('nope')
+                    ->construct('Nonexistent', true)
+            )
+            ->bind(self::class, Hydrator::ALL_NONSTATIC_PROPERTIES)
+        ;
+    }
+
 }
 
 class Constructable
@@ -57,17 +81,36 @@ class Constructable
 
 class NestedConstruct
 {
-    use Configurable;
+    private static Hydrator $hydrator;
 
     public $sub;
 
-    protected function configureClassMap(string $property, $value)
+    public function getErrors(): array
     {
-        if ($property === 'sub') {
-            return ConfigConstruct::class;
-        }
-        return false;
+        return self::$hydrator->getErrors();
     }
+
+    public function hydrate($config, $options = []): bool
+    {
+        if (!isset(self::$hydrator)) {
+            self::hydrateInit();
+        }
+        $result = self::$hydrator->hydrate($this, $config, $options);
+
+        return $result;
+    }
+
+    private static function hydrateInit()
+    {
+        self::$hydrator = Hydrator::make()
+            ->addProperty(
+                Property::make('sub')
+                    ->bind(Constructable::class)
+            )
+            ->bind(self::class, Hydrator::ALL_NONSTATIC_PROPERTIES)
+        ;
+    }
+
 }
 
 class ConstructTest extends TestCase
@@ -77,7 +120,7 @@ class ConstructTest extends TestCase
         $input = new stdClass();
         $input->anInterval = 'P3M';
         $testObj = new ConfigConstruct();
-        $testObj->configure($input);
+        $testObj->hydrate($input);
         $this->assertInstanceOf(DateInterval::class, $testObj->anInterval);
         $this->assertEquals(3, $testObj->anInterval->m);
     }
@@ -87,17 +130,9 @@ class ConstructTest extends TestCase
         $input = new stdClass();
         $input->badConstruct = 1;
         $testObj = new ConfigConstruct();
-        $testObj->configure($input);
-        $errors = $testObj->configureGetErrors();
-        $this->assertCount(2, $errors);
-        $this->assertEquals(
-            0,
-            strpos(
-                $errors[0],
-                'Unable to construct: Too few arguments to function'
-                . ' Abivia\Configurable\Tests\Php74\Constructable::__construct(), 1 passed'
-            )
-        );
+        $this->expectException(HydrationException::class);
+        $this->expectExceptionMessage('Too few arguments');
+        $testObj->hydrate($input);
     }
 
     public function testBadUnpack2()
@@ -105,17 +140,9 @@ class ConstructTest extends TestCase
         $input = new stdClass();
         $input->badConstruct = [1];
         $testObj = new ConfigConstruct();
-        $testObj->configure($input);
-        $errors = $testObj->configureGetErrors();
-        $this->assertCount(2, $errors);
-        $this->assertEquals('Unable to configure property "badConstruct":', $errors[0]);
-        $this->assertTrue(
-            strpos(
-                $errors[1],
-                'Unable to construct: Too few arguments to function'
-                . ' Abivia\Configurable\Tests\Php74\Constructable::__construct(), 1 passed'
-            ) === 0
-        );
+        $this->expectException(HydrationException::class);
+        $this->expectExceptionMessage('Too few arguments');
+        $testObj->hydrate($input);
     }
 
     public function testNoClass()
@@ -123,14 +150,9 @@ class ConstructTest extends TestCase
         $input = new stdClass();
         $input->nope = 'P3M';
         $testObj = new ConfigConstruct();
-        $testObj->configure($input);
-        $this->assertEquals(
-            [
-                'Unable to configure property "nope":',
-                'Class not found: Nonexistent'
-            ],
-            $testObj->configureGetErrors()
-        );
+        $this->expectException(HydrationException::class);
+        $this->expectExceptionMessage('Unable to load class');
+        $testObj->hydrate($input);
     }
 
     public function testNestedBadUnpack()
@@ -140,19 +162,9 @@ class ConstructTest extends TestCase
         $input = new stdClass;
         $input->sub = $sub;
         $testObj = new NestedConstruct();
-        $testObj->configure($input);
-        $errors = $testObj->configureGetErrors();
-        $this->assertCount(3, $errors);
-        $this->assertEquals('Unable to configure property "sub":', $errors[0]);
-        $this->assertEquals('Unable to configure property "badConstruct":', $errors[1]);
-        $this->assertTrue(
-            strpos(
-                $errors[2],
-                'Unable to construct: Too few arguments to function'
-                . ' Abivia\Configurable\Tests\Php74\Constructable::__construct(),'
-                . ' 1 passed'
-            ) === 0
-        );
+        $this->expectException(HydrationException::class);
+        $testObj->hydrate($input);
+        $errors = $testObj->getErrors();
     }
 
     public function testConstructUnpack()
@@ -160,7 +172,7 @@ class ConstructTest extends TestCase
         $input = new stdClass();
         $input->anObject = ['one', 'two'];
         $testObj = new ConfigConstruct();
-        $testObj->configure($input);
+        $testObj->hydrate($input);
         $this->assertInstanceOf(Constructable::class, $testObj->anObject);
         $this->assertEquals('one', $testObj->anObject->a);
         $this->assertEquals('two', $testObj->anObject->b);
