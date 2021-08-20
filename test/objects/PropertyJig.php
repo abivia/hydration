@@ -30,12 +30,18 @@ class PropertyJig
     protected object $objectClass;
 
     public array $objectClassArray;
+
     /**
      * @var string This property has a name different to that in the source data.
      */
     protected string $internalName;
 
     private string $privateString = 'initial';
+
+    /**
+     * @var mixed Generic test property.
+     */
+    public $prop;
 
     /**
      * @var string This property is implicit, added by the Hydrator.

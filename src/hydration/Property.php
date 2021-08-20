@@ -4,30 +4,26 @@ declare(strict_types=1);
 
 namespace Abivia\Hydration;
 
+use ArgumentCountError;
 use Closure;
 use Error;
+use ReflectionClass;
+use ReflectionException;
 use ReflectionProperty;
 use function count;
 
 /**
  * Define hydration/dehydration rules for a property.
- *
- * ```php
- * $tempExample = Property::make('form')->bind('NewClassName');
- * $tempExample = Property::make('elements')->with(
- *     function ($value){
- *         return ucfirst($value->type) . 'Element';
- *     },
- *     'key'
- * );
- * $tempExample = Property::make('form')->construct('DateTime');
- * ```
  */
 class Property
 {
+    /**
+     * Constants governing how a value is assigned.
+     */
     protected const MODE_CLASS = 1;
     protected const MODE_CONSTRUCT = 2;
     protected const MODE_SIMPLE = 3;
+
     /**
      * @var string|null The name of the property within this property's value to use as an array
      * key. If null, this property is a scalar or single object.
@@ -40,7 +36,7 @@ class Property
     protected ?Closure $arrayKeyClosure = null;
 
     /**
-     * @var bool Set if this property is an array
+     * @var bool Set if this property is an array.
      */
     protected bool $arrayMode = false;
 
@@ -48,6 +44,7 @@ class Property
      * @var string|null The name of a class to instantiate and store the property value into.
      */
     protected ?string $binding = null;
+
     /**
      * @var string|null Text to return when attempting to store a blocked property.
      */
@@ -99,6 +96,11 @@ class Property
     protected int $mode;
 
     /**
+     * @var array Options for the current assignment.
+     */
+    private array $options;
+
+    /**
      * @var ReflectionProperty Reflection information on the property we're bound to.
      */
     protected ReflectionProperty $reflection;
@@ -128,7 +130,7 @@ class Property
     protected ?Closure $validateClosure = null;
 
     /**
-     * Class constructor, source property required.
+     * Class constructor, source property required {@see make()}.
      *
      * @param string $property The name of this property in the source data.
      * @param string|null $binding Optional name of a class to store the property value into.
@@ -170,14 +172,19 @@ class Property
     }
 
     /**
+     * Assign a value to this property.
+     *
      * @param object $target The object being hydrated.
      * @param mixed $value Value of the property.
-     * @param array $options
+     * @param array $options Options (passed to any objects hydrated by this property).
+     *
      * @return bool
+     *
      * @throws HydrationException
      */
     public function assign(object $target, $value, array $options = []): bool
     {
+        $this->options = $options;
         $this->errors = [];
         if ($this->blocked) {
             return false;
@@ -198,14 +205,14 @@ class Property
                 $this->assignProperty($target, $value);
             }
         } else {
-            $this->assignInstance($target, $value, $options);
+            $this->assignInstance($target, $value);
         }
 
         return count($this->errors) === 0;
     }
 
     /**
-     * Create a new object or array of objects and assign values.
+     * Create a new array and assign values.
      *
      * @param object $target The object being hydrated.
      * @param mixed $value Value of the property.
@@ -235,10 +242,10 @@ class Property
      *
      * @param object $target The object being hydrated.
      * @param mixed $value Value of the property.
-     * @param array $options Strict, logging options.
+     *
      * @throws HydrationException
      */
-    protected function assignInstance(object $target, $value, array $options)
+    protected function assignInstance(object $target, $value)
     {
         // If the value appears to be an associative array, convert to object.
         if ($this->isAssociative($value)) {
@@ -261,8 +268,9 @@ class Property
                     if ($this->isAssociative($element)) {
                         $element = (object)$element;
                     }
-                    $obj = $this->makeTarget($element, $options);
+                    $obj = $this->makeTarget($element, $this->options);
 
+                    // stdClass objects are already cloned. Nothing else to do here.
                     if(get_class($obj) !== 'stdClass') {
                         if (!method_exists($obj, $this->hydrateMethod)) {
                             throw new HydrationException(
@@ -270,12 +278,16 @@ class Property
                                 . " has no hydration method $this->hydrateMethod" . '()'
                             );
                         }
-                        $obj->{$this->hydrateMethod}($element, $options);
+                        $obj->{$this->hydrateMethod}($element, $this->options);
                     }
+
+                    // If the application is handling the assignment, pass it off
                     if ($this->setMethod !== '') {
-                        $target->{$this->setMethod}($obj);
+                        $target->{$this->setMethod}($obj, $this->options);
                         continue;
                     }
+
+                    // Store the new object into the array.
                     $key = $this->getArrayIndex($obj, $element);
                     if ($key !== null && !$this->duplicateKeys && isset($tempArray[$key])) {
                         $this->errors[] = "Duplicate key \"$key\" configuring \$$this->sourceProperty in "
@@ -288,6 +300,8 @@ class Property
                         }
                     }
                 }
+
+                // If the application wasn't doing assignment, assign the property.
                 if ($this->setMethod === '') {
                     $this->assignProperty($target, $tempArray, false);
                 }
@@ -295,11 +309,11 @@ class Property
                 if (!$this->checkValidity($value)) {
                     return;
                 }
-                $obj = $this->makeTarget($value, $options);
+                $obj = $this->makeTarget($value, $this->options);
 
                 // In construct mode, $value was used to hydrate $obj via constructor.
                 if ($this->mode !== self::MODE_CONSTRUCT) {
-                    $obj->{$this->hydrateMethod}($value, $options);
+                    $obj->{$this->hydrateMethod}($value, $this->options);
                 }
                 $this->assignProperty($target, $obj);
             }
@@ -317,6 +331,7 @@ class Property
      *
      * @param object $target The object being hydrated.
      * @param mixed $value The value to be assigned to the property/index.
+     * @param bool $useArray If false, $value is a vetted array. We just store it.
      */
     protected function assignProperty(object $target, $value, bool $useArray = true)
     {
@@ -329,7 +344,7 @@ class Property
         }
         try {
             if ($this->setMethod !== '') {
-                $target->{$this->setMethod}($value);
+                $target->{$this->setMethod}($value, $this->options);
             } elseif ($useArray && $this->arrayMode) {
                 $key = $this->getArrayIndex($target, $value);
                 // Assigning an array element
@@ -364,9 +379,9 @@ class Property
     }
 
     /**
-     * Name of the class to store this property into.
+     * Set the class to store this property into, optionally the method for doing so.
      *
-     * @param string|null $binding The class name.
+     * @param string|null $binding A class name.
      *
      * @return $this
      */
@@ -379,6 +394,14 @@ class Property
         return $this;
     }
 
+    /**
+     * Set the property to blocked. Blocked properties generate an error on hydration.
+     * {@see unblock()}
+     *
+     * @param string|null $message A custom message to be returned as the error.
+     *
+     * @return $this
+     */
     public function block(?string $message = null): self
     {
         $this->blocked = true;
@@ -387,6 +410,13 @@ class Property
         return $this;
     }
 
+    /**
+     * Ensure that the supplied data is valid.
+     *
+     * @param mixed $value The data to be validated.
+     *
+     * @return bool
+     */
     protected function checkValidity($value): bool
     {
         if ($this->validateClosure) {
@@ -399,6 +429,16 @@ class Property
         return true;
     }
 
+    /**
+     * Set a class to be created via constructor.
+     *
+     * @param string $objectClass Name of the class to be created.
+     * @param bool $unpack If the data to be passed is an array, unpack it to individual arguments.
+     *
+     * @return $this
+     *
+     * @throws HydrationException
+     */
     public function construct(string $objectClass, bool $unpack = false): self
     {
         $this->binding = $objectClass;
@@ -413,6 +453,12 @@ class Property
         return $this;
     }
 
+    /**
+     * Set the rules for serializing this property to JSON.
+     *
+     * @param array $rules
+     * @return $this
+     */
     public function encode(array $rules): self
     {
         $this->encodeRules = $rules;
@@ -433,9 +479,10 @@ class Property
     /**
      * Get the array index based on a value.
      *
-     * @param object $target
+     * @param object $target The object being hydrated.
      * @param mixed $value The value being stored.
      * @param mixed $default Optional value if not in array mode.
+     *
      * @return string|int|null
      */
     protected function getArrayIndex(object $target, $value, $default = null)
@@ -454,6 +501,8 @@ class Property
     }
 
     /**
+     * Query if this property is blocked.
+     *
      * @return bool
      */
     public function getBlocked(): bool
@@ -461,12 +510,18 @@ class Property
         return $this->blocked;
     }
 
+    /**
+     * Get errors generated by the last call to assign().
+     *
+     * @return array
+     */
     public function getErrors(): array
     {
         return $this->errors;
     }
 
     /**
+     * Get the name of the hydration method for this property.
      * @return string
      */
     public function getHydrateMethod(): string
@@ -474,11 +529,23 @@ class Property
         return $this->hydrateMethod;
     }
 
+    /**
+     * Query if this property is ignored.
+     *
+     * @return bool
+     */
     public function getIgnored(): bool
     {
         return $this->ignored;
     }
 
+    /**
+     * Set ignore status on this property. Ignored properties are silently discarded.
+     *
+     * @param bool $ignore
+     *
+     * @return $this
+     */
     public function ignore(bool $ignore = true): self
     {
         $this->ignored = $ignore;
@@ -486,6 +553,13 @@ class Property
         return $this;
     }
 
+    /**
+     * Determine if the value is an associative array (if it has non-integer keys).
+     *
+     * @param $value
+     *
+     * @return bool
+     */
     private function isAssociative($value): bool
     {
         $assoc = false;
@@ -502,11 +576,13 @@ class Property
     }
 
     /**
-     * Name a property to be used as an array index. Null to disable array mode.
+     * Set the method for computing an array index. Null to disable array mode.
      *
      * @param string|bool|Closure|null $key
      *
      * @return $this
+     *
+     * @throws HydrationException
      */
     public function key($key = true): self
     {
@@ -529,6 +605,14 @@ class Property
         return $this;
     }
 
+    /**
+     * Fluent constructor.
+     *
+     * @param string $property Name of the property.
+     * @param string|null $binding  Name of the class to create when hydrating the property.
+     *
+     * @return static
+     */
     public static function make(string $property, ?string $binding = null): self
     {
         $obj = new self($property);
@@ -541,7 +625,7 @@ class Property
     /**
      * Create an object suitable for hydration.
      *
-     * @param object $value
+     * @param string|object $value
      * @param array $options
      * @return object
      * @throws AssignmentException
@@ -573,7 +657,7 @@ class Property
                 } else {
                     $obj = new $ourClass();
                 }
-            } catch (\ArgumentCountError $ex) {
+            } catch (ArgumentCountError $ex) {
                 throw new HydrationException(
                     "Unable to create instance for \$$this->sourceProperty "
                     . $ex->getMessage()
@@ -584,13 +668,40 @@ class Property
         return $obj;
     }
 
-    public function reflects(ReflectionProperty $rp): self
+    /**
+     * Set the property's reflection info.
+     *
+     * @param ReflectionProperty|string|object $rp The target class, an object of that class, or
+     * a ReflectionProperty.
+     *
+     * @return $this
+     *
+     * @throws HydrationException
+     */
+    public function reflects($rp): self
     {
-        $this->reflection = $rp;
+        if ($rp instanceof ReflectionProperty) {
+            $this->reflection = $rp;
+        } else {
+            try {
+                $reflectClass = new ReflectionClass($rp);
+                $this->reflection = $reflectClass->getProperty($this->targetProperty);
+            } catch (ReflectionException $ex) {
+                throw new HydrationException($ex->getMessage());
+            }
+
+        }
 
         return $this;
     }
 
+    /**
+     * Specify a method in the target class used to set the value of this property.
+     *
+     * @param string $method The method takes the proposed property value and options as arguments.
+     *
+     * @return $this
+     */
     public function setter(string $method): self
     {
         $this->setMethod = $method;
@@ -598,16 +709,33 @@ class Property
         return $this;
     }
 
+    /**
+     * Get the name of the property in the source file.
+     *
+     * @return string
+     */
     public function source(): string
     {
         return $this->sourceProperty;
     }
 
+    /**
+     * Get the name of the property in the hydrated object.
+     *
+     * @return string
+     */
     public function target(): string
     {
         return $this->targetProperty;
     }
 
+    /**
+     * When set, cast the value of this property to an associative array before hydration.
+     *
+     * @param bool $castToArray
+     *
+     * @return $this
+     */
     public function toArray(bool $castToArray = true): self
     {
         $this->castArray = $castToArray;
@@ -615,6 +743,11 @@ class Property
         return $this;
     }
 
+    /**
+     * Set this property to not blocked.
+     *
+     * @return $this
+     */
     public function unblock(): self
     {
         $this->blocked = false;
@@ -623,6 +756,12 @@ class Property
         return $this;
     }
 
+    /**
+     * Set a function that will be used to ensure the value of this property is valid before
+     * hydration.
+     * @param Closure $fn
+     * @return $this
+     */
     public function validate(Closure $fn): self
     {
         $this->validateClosure = $fn;

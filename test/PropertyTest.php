@@ -6,8 +6,10 @@ require 'Objects/ConstructOneArg.php';
 require 'Objects/DefaultConfig.php';
 require 'Objects/PropertyJig.php';
 
+use Abivia\Hydration\HydrationException;
 use Abivia\Hydration\Property;
 use PHPUnit\Framework\TestCase;
+use stdClass;
 
 class PropertyTest extends TestCase
 {
@@ -65,6 +67,9 @@ class PropertyTest extends TestCase
         $this->assertTrue($obj->getBlocked());
         $this->assertEquals($msg, $obj->getBlockMessage());
 
+        $target = new stdClass();
+        $this->assertFalse($obj->assign($target, 'nada'));
+
     }
 
     public function testIgnore()
@@ -117,6 +122,29 @@ class PropertyTest extends TestCase
         $status = $obj->assign($target, $data);
         $this->assertTrue($status);
         $this->assertEquals($data, $target->arrayOfTestData);
+    }
+
+    public function testAssignArrayCast()
+    {
+        $target = new Objects\PropertyJig();
+        $reflectClass = new \ReflectionClass($target);
+        $reflectProp = $reflectClass->getProperty('arrayOfTestData');
+
+        $obj = Property::make('arrayOfTestData')
+            ->toArray()
+            ->reflects($reflectProp)
+            ->key();
+
+        $data = new stdClass();
+        $data->one = 1;
+        $data->two = 2;
+        $data->three = 3;
+        $status = $obj->assign($target, $data);
+        $this->assertTrue($status);
+        $this->assertEquals(
+            ["one" => 1, "two" => 2, "three" => 3],
+            $target->arrayOfTestData
+        );
     }
 
     public function testAssignAssociativeArray()
@@ -263,8 +291,6 @@ class PropertyTest extends TestCase
     public function testAssignMethod()
     {
         $target = new Objects\PropertyJig();
-        $reflectClass = new \ReflectionClass($target);
-        $reflectProp = $reflectClass->getProperty('ignorable');
 
         $obj = Property::make('ignorable')
             ->setter('setIgnorable');
@@ -272,6 +298,45 @@ class PropertyTest extends TestCase
         $status = $obj->assign($target, 'viaMethod');
         $this->assertTrue($status);
         $this->assertEquals('viaMethod', $target->ignorable);
+    }
+
+    public function testSetReflectionString()
+    {
+        $target = new Objects\PropertyJig();
+        $reflectClass = new \ReflectionClass($target);
+        $reflectProp = $reflectClass->getProperty('prop');
+        $obj = Property::make('prop')
+            ->reflects(Objects\PropertyJig::class);
+
+        // It is sufficient to not see an exception before we get here.
+        $this->assertTrue(true);
+    }
+
+    public function testSetReflectionObject()
+    {
+        $target = new Objects\PropertyJig();
+        $obj = Property::make('prop')
+            ->reflects($target);
+
+        // It is sufficient to not see an exception before we get here.
+        $this->assertTrue(true);
+    }
+
+    public function testSetReflectionBad1()
+    {
+        $this->expectException(HydrationException::class);
+        $this->expectExceptionMessage('does not exist');
+        Property::make('prop')
+            ->reflects('ClassDoesNotexist');
+    }
+
+    public function testSetReflectionBad2()
+    {
+        $this->expectException(HydrationException::class);
+        $this->expectExceptionMessage('does not exist');
+        $target = new Objects\PropertyJig();
+        Property::make('bogus')
+            ->reflects($target);
     }
 
     public function testValidation() {
@@ -292,6 +357,24 @@ class PropertyTest extends TestCase
         $status = $obj->assign($target, 9);
         $this->assertFalse($status);
         $this->assertEquals(['Invalid value for evenInt'], $obj->getErrors());
+    }
+
+    public function testValidationArray() {
+        $target = new Objects\PropertyJig();
+        $reflectClass = new \ReflectionClass($target);
+        $reflectProp = $reflectClass->getProperty('evenInt');
+
+        $obj = Property::make('evenIntArray')
+            ->as(Objects\PropertyJig::class)
+            ->key()
+            ->validate(function ($value) {
+                return ($value & 1) === 0;
+            })
+            ->reflects($reflectProp);
+
+        $status = $obj->assign($target, [2, 4, 9, 6]);
+        $this->assertFalse($status);
+        $this->assertEquals(['Invalid value for evenIntArray'], $obj->getErrors());
     }
 
 }
