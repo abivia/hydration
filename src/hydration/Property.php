@@ -160,13 +160,13 @@ class Property
     /**
      * Use a different property name when hydrating.
      *
-     * @param string $property The property name in the class.
+     * @param string $name The property name in the class.
      *
      * @return $this
      */
-    public function as(string $property): self
+    public function as(string $name): self
     {
-        $this->targetProperty = $property;
+        $this->targetProperty = $name;
 
         return $this;
     }
@@ -188,7 +188,7 @@ class Property
         $this->options['strict'] ??= true;
         $this->errors = [];
         if ($this->blocked) {
-            $message = $this->getBlockMessage()
+            $message = $this->blockMessage
                 ?? "Access to $this->sourceProperty in class "
                 . get_class($target) . " is prohibited.";
             $this->errors[] = $message;
@@ -472,16 +472,6 @@ class Property
         $this->encodeRules = $rules;
 
         return $this;
-    }
-
-    /**
-     * Get any custom message to return when a blocked property is supplied.
-     *
-     * @return string|null
-     */
-    public function getBlockMessage(): ?string
-    {
-        return $this->blockMessage;
     }
 
     /**

@@ -4,6 +4,8 @@ declare(strict_types=1);
 namespace Abivia\Hydration;
 
 use ReflectionClass;
+use ReflectionException;
+use ReflectionNamedType;
 use ReflectionProperty;
 use Symfony\Component\Yaml\Yaml;
 
@@ -38,7 +40,7 @@ class Hydrator
     /**
      * @var Property[] Property list indexed by source name.
      */
-    protected array $sourceProperties;
+    protected array $sourceProperties = [];
 
     /**
      * @var string The name of the class we're hydrating.
@@ -48,7 +50,7 @@ class Hydrator
     /**
      * @var Property[] Property list indexed by target name.
      */
-    protected array $targetProperties;
+    protected array $targetProperties = [];
 
     /**
      * Add a property to be hydrated.
@@ -109,10 +111,11 @@ class Hydrator
     /**
      * Bind an object instance or class name.
      *
-     * @param string|object $subject Name of the class to bind the hydrator to.
+     * @param string|object $subject Name or instance of the class to bind the hydrator to.
      * @param int $filter Filter for adding implicit properties.
      * @return $this
-     * @throws \ReflectionException
+     * @throws ReflectionException
+     * @throws HydrationException
      */
     public function bind($subject, int $filter = ReflectionProperty::IS_PUBLIC): self
     {
@@ -135,17 +138,36 @@ class Hydrator
             }
         }
 
-        foreach (self::$reflectionCache[$this->subjectClass] as $propName => $rp) {
+        foreach (self::$reflectionCache[$this->subjectClass] as $propName => $reflectProperty) {
             // If the property hasn't been defined and isn't filtered
             // generate a default mapping.
             if (!isset($this->targetProperties[$propName])) {
-                if ($rp->getModifiers() & $filter) {
+                if ($reflectProperty->getModifiers() & $filter) {
                     $this->targetProperties[$propName] = Property::make($propName);
                 } else {
                     continue;
                 }
             }
-            $this->targetProperties[$propName]->reflects($rp);
+            try {
+                // See if we can establish a binding to classes that implement Hydratable.
+                /**
+                 * @var \ReflectionType (ReflectionNamedType in PHP 8.0+)
+                 */
+                $reflectType = $reflectProperty->getType();
+                if ($reflectType !== null) {
+                    $forClass = (string)$reflectType;
+                    if ($forClass[0] === '?') {
+                        $forClass = substr($forClass, 1);
+                    }
+                    // If the class is "array" or the like, this will throw an exception.
+                    $reflectClass = new ReflectionClass($forClass);
+                    if (in_array(Hydratable::class, $reflectClass->getInterfaceNames())) {
+                        $this->targetProperties[$propName]->bind($forClass);
+                    }
+                }
+            } catch (ReflectionException $ex) {
+            }
+            $this->targetProperties[$propName]->reflects($reflectProperty);
         }
 
         // Build the index by source.
@@ -180,14 +202,10 @@ class Hydrator
     /**
      * Load configuration data into an object structure.
      *
-     * @param object $target The object being configured
+     * @param object $target The object to be hydrated.
      * @param string|object|array $config Configuration data either as a string or the result of
      *      decoding a configuration file.
-     * @param array $options Options are:
-     * parent:object A reference to the object containing $target (if any).
-     * source:string [json]|object|yaml Format of the data in $config
-     * strict:bool = true   Throw errors
-     * Application specific options begin with an underscore and will be passed through unchanged.
+     * @param array|null $options Options. {@see Hydratable::hydrate()}.
      *
      * @return bool True if all fields passed validation; if in strict mode
      *              true when all fields are defined class properties.
@@ -267,7 +285,7 @@ class Hydrator
      * @param int $filter Filter for property scopes to auto-bind.
      *
      * @return static
-     * @throws \ReflectionException
+     * @throws ReflectionException
      */
     public static function make(
         $subject = null,
