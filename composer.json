@@ -1,12 +1,15 @@
 {
-    "name": "abivia/configurable",
-    "description": "Trait to support creating complex nested class structures from JSON/YAML objects.",
+    "name": "abivia/hydration",
+    "description": "Support for creating complex nested class structures from JSON/YAML objects.",
     "keywords": ["config", "configuration", "deserialization", "hydration", "json", "yaml"],
-    "homepage": "https://gitlab.com/abivia/configurable",
+    "homepage": "https://gitlab.com/abivia/hydration",
     "type": "library",
     "require": {
         "php": ">=7.4|^8.0",
         "ext-json": "*"
+    },
+    "suggest": {
+        "symfony/yaml": "For parsing YAML source files"
     },
     "require-dev": {
         "phpunit/phpunit": "^9.0-stable",
