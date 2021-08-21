@@ -1,7 +1,8 @@
 <?php
 
-namespace Abivia\Configurable\Tests;
+namespace Abivia\Hydration\Test;
 
+use Abivia\Hydration\Hydratable;
 use Abivia\Hydration\HydrationException;
 use Abivia\Hydration\Hydrator;
 use Abivia\Hydration\Property;
@@ -9,7 +10,7 @@ use DateInterval;
 use PHPUnit\Framework\TestCase;
 use stdClass;
 
-class ConfigConstruct
+class ConfigConstruct implements Hydratable
 {
     /**
      * @var Constructable
@@ -33,7 +34,7 @@ class ConfigConstruct
         return self::$hydrator->getErrors();
     }
 
-    public function hydrate($config, $options = []): bool
+    public function hydrate($config, ?array $options = []): bool
     {
         if (!isset(self::$hydrator)) {
             self::hydrateInit();
@@ -79,7 +80,7 @@ class Constructable
     }
 }
 
-class NestedConstruct
+class NestedConstruct implements Hydratable
 {
     private static Hydrator $hydrator;
 
@@ -90,7 +91,7 @@ class NestedConstruct
         return self::$hydrator->getErrors();
     }
 
-    public function hydrate($config, $options = []): bool
+    public function hydrate($config, ?array $options = []): bool
     {
         if (!isset(self::$hydrator)) {
             self::hydrateInit();

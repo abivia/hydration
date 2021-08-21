@@ -1,6 +1,6 @@
 <?php
 
-namespace Abivia\Configurable\Test;
+namespace Abivia\Hydration\Test;
 
 use PHPUnit\Framework\TestCase;
 use \Abivia\Hydration\Hydrator;

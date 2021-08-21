@@ -1,18 +1,19 @@
 <?php
 
-namespace Abivia\Configurable\Test;
+namespace Abivia\Hydration\Test;
 
+use Abivia\Hydration\Hydratable;
 use PHPUnit\Framework\TestCase;
-use \Abivia\Hydration\Hydrator;
-use \Abivia\Hydration\Property;
+use Abivia\Hydration\Hydrator;
+use Abivia\Hydration\Property;
 
-class AssociativeArrayObject
+class AssociativeArrayObject implements Hydratable
 {
     private static Hydrator $hydrator;
 
     public array $list;
 
-    public function hydrate($config)
+    public function hydrate($config, $options = []): bool
     {
         if (!isset(self::$hydrator)) {
             self::$hydrator = new Hydrator();
@@ -24,7 +25,7 @@ class AssociativeArrayObject
                 )
                 ->bind(self::class);
         }
-        self::$hydrator->hydrate($this, $config);
+        return self::$hydrator->hydrate($this, $config);
     }
 }
 

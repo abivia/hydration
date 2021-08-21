@@ -1,7 +1,8 @@
 <?php
 
-namespace Abivia\Configurable\Tests;
+namespace Abivia\Configurable\Test;
 
+use Abivia\Hydration\Hydratable;
 use Abivia\Hydration\HydrationException;
 use Abivia\Hydration\Hydrator;
 use Abivia\Hydration\Property;
@@ -243,13 +244,13 @@ class ConfigurableTypeA
 /**
  * B test class that can be created during configuration.
  */
-class ConfigurableTypeB
+class ConfigurableTypeB implements Hydratable
 {
     public $key;
     public $propB;
     public $type;
 
-    public function hydrate($config, $options = []): bool
+    public function hydrate($config, ?array $options = []): bool
     {
         $this->key ??= $config->key;
         $this->propB ??= $config->propB;

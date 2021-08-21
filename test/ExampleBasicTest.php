@@ -1,6 +1,6 @@
 <?php
 
-namespace Abivia\Configurable\Test;
+namespace Abivia\Hydration\Test;
 
 use PHPUnit\Framework\TestCase;
 use \Abivia\Hydration\Hydrator;
@@ -26,10 +26,10 @@ class ExampleBasicTest extends TestCase
 {
     public function testExample()
     {
-        $json = '{"userName": "admin", "password": "insecure"}';
+        $json = '{"userName": "admin", "password": "secret"}';
         $obj = new BasicObject();
         $obj->hydrate($json);
         $this->assertEquals('admin', $obj->userName);
-        $this->assertEquals('insecure', $obj->password);
+        $this->assertEquals('secret', $obj->password);
     }
 }

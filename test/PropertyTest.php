@@ -65,7 +65,6 @@ class PropertyTest extends TestCase
 
         $obj->block($msg);
         $this->assertTrue($obj->getBlocked());
-        $this->assertEquals($msg, $obj->getBlockMessage());
 
         $target = new stdClass();
         $this->assertFalse($obj->assign($target, 'nada', ['strict' => false]));

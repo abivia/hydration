@@ -1,6 +1,6 @@
 <?php
 
-namespace Abivia\Configurable\Tests;
+namespace Abivia\Hydration\Test;
 
 use Abivia\Hydration\HydrationException;
 use Abivia\Hydration\Hydrator;
