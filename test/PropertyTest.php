@@ -2,9 +2,9 @@
 
 namespace Abivia\Hydration\Test;
 
-require 'Objects/ConstructOneArg.php';
-require 'Objects/DefaultConfig.php';
-require 'Objects/PropertyJig.php';
+require 'objects/ConstructOneArg.php';
+require 'objects/DefaultConfig.php';
+require 'objects/PropertyJig.php';
 
 use Abivia\Hydration\HydrationException;
 use Abivia\Hydration\Property;
