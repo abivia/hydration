@@ -1,21 +1,19 @@
-Abivia\Hydration
-====
+#Abivia\Hydration
 
 Hydration populates complex data structures from user editable JSON or YAML
 sources. If your application
 
 - has configurations with several levels of nesting,
-- isn't validating user editable data in configuration files,
+- needs to validate user editable data in configuration files,
 - is spending a lot of effort reading from the stdClass objects created by `json_decode()` or `yaml_parse()` to convert
   them into your application's class structures, or
-- is just using poorly typed, IDE unfriendly `stdClass` objects for
-configuration
+- is just using `stdClass` objects for configuration
 
 then Hydration is here to help.
 
 Hydration makes it easy to convert of a set of untyped data structures
 returned by decoding JSON or YAML configuration files, into PHP classes.
-Hydration can
+Hydration can:
 
 - create associative arrays of named classes indexed by a property of the
 class,
@@ -24,9 +22,50 @@ class,
 - guard against overwriting of protected properties, and
 - map properties from user-friendly names to application-meaningful identifiers.
 
-Example
-----
-`Hydration` makes it easy to take data like this:
+Hydration is an evolution of `Abivia\Configurable`. Hydration is implemented as a library that uses
+reflection to access the objects it constructs. It also offers a fluent interface that is more
+modular and easy to set up.
+
+If your classes implement the `Hydratable` interface, then Hydration will use reflection
+to automatically connect related objects. This behavior can be customized by
+creating `Property` objects for any properties that require special handling,
+validation, etc.
+
+
+##Example
+
+```php
+use Abivia\Hydration\Hydrator;
+
+class MyClass {
+    private static Hydrator $hydrator;
+    protected $bar;
+    private $foo;
+    
+    public function hydrate($config): bool {
+        if (!isset(self::$hydrator)) {
+            self::$hydrator = Hydrator::make(self::class);
+        }
+        return self::$hydrator->hydrate($this, $config);
+    }
+}
+
+$config = json_decode('{"bar": "This is bar", "foo": "This is foo"}');
+$myObject = new MyClass();
+$myObject->hydrate($config);
+print_r($myObject);
+```
+Will output:
+```
+MyClass Object
+(
+    [bar:protected] => This is bar
+    [foo:private] => This is foo    
+)
+```
+
+
+`Hydration` takes data like this:
 
 ```json
 {
@@ -37,7 +76,7 @@ Example
             "driver": "mysql",
             "host": "localhost",
             "name": "crm",
-            "pass": "insecure",
+            "pass": "secret",
             "port": 3306,
             "user": "admin"
         },
@@ -46,7 +85,7 @@ Example
             "driver": "mysql",
             "host": "localhost",
             "name": "geo",
-            "pass": "insecure",
+            "pass": "secret",
             "port": 3306,
             "user": "admin"
         }
@@ -54,7 +93,7 @@ Example
 }
 ```
 
-and turn it into a class structure like this:
+and turns it into a class structure like this:
 
 ```
 Environment Object
@@ -69,7 +108,7 @@ Environment Object
                     [key] => crm
                     [label:protected] => crm
                     [name:protected] => crm
-                    [pass:DatabaseConfiguration:private] => insecure
+                    [pass:DatabaseConfiguration:private] => secret
                     [port:protected] => 3306
                     [user:protected] => admin
                 )
@@ -81,7 +120,7 @@ Environment Object
                     [key] => geocoder
                     [label:protected] => geocoder
                     [name:protected] => geo
-                    [pass:DatabaseConfiguration:private] => insecure
+                    [pass:DatabaseConfiguration:private] => secret
                     [port:protected] => 3306
                     [user:protected] => admin
                 )
@@ -89,29 +128,31 @@ Environment Object
 )
 ```
 
-Features
-----
+##Features
 
-`Hydration` supports property mapping, gated properties (via allow, block, and ignore methods),
+Hydration supports property mapping, gated properties (via block, and ignore methods),
 data validation, and data-driven class instantiation. It will map arrays of objects to
 associative arrays of PHP classes that are indexed by any unique scalar property in the object.
 
 Loading can be either fault-tolerant or strict. Strict validation can either fail with a
-`false` result or by throwing an Exception you specify.
+`false` result or by throwing an Exception.
 
-Installation
-----
+##Installation
 
 ```composer require abivia/hydration```
 
-Hydration uses the Symphony YAML parser.
+Hydration uses the Symphony parser for YAML.
 
 
-Basic Use
-----
+##Basic Use
 
 - Provide a hydration method that initializes the hydrator.
+- If required, customize the hydration process by adding Property definitions.
+- Bind the hydrator to the class being hydrated.
 - Instantiate the top level class and pass your decoded JSON or YAML to the method.
+
+The default is to associate all public properties in the host class. If a property is typed
+with a class that implements the `Hydratable` interface, then the property will
 
 Basic example:
 ```php
@@ -134,22 +175,22 @@ class BasicObject {
     }
 }
 
-$json = '{"userName": "admin"; "password": "insecure"}';
+$json = '{"userName": "admin"; "password": "secret"}';
 $obj = new BasicObject();
-$obj->hydrate(json_decode($json));
+$obj->hydrate($json);
 echo "$obj->userName, $obj->password";
 ```
 Expected Output:
-admin, insecure
+admin, secret
 
-See `BasicExampleTest.php` for a working example.
+See `test/ExampleBasicTest.php` for a working example.
 
-Selectively Convert Objects to Arrays
+Selectively Convert Objects to Associative Arrays
 ---
 
 The `json_decode()` method has an option to force conversion of objects
 to arrays, but there is no way to get selective conversion. Hydration can
-do this via a class map to 'array'. See `SelectiveArrayExampleTest.php`
+do this via a class map to 'array'. See `test/ExampleSelectiveArrayTest.php`
 for a working example.
 
 ```php
@@ -166,7 +207,7 @@ class SelectiveArrayObject
             self::$hydrator = new Hydrator();
             self::$hydrator
                 ->addProperty(
-                    Property::make('simple')->bind('array')
+                    Property::make('simple')->toArray('array')
                 )
                 ->bind(self::class);
         }
@@ -176,7 +217,7 @@ class SelectiveArrayObject
 
 $json = '{"simple": { "a": "this is a", "*": "this is *"}}';
 $obj = new SelectiveArrayObject();
-$obj->hydrate(json_decode($json));
+$obj->hydrate($json);
 print_r($hydrate);
 ```
 Will give this result
@@ -199,25 +240,25 @@ Have an array of objects with a property that you'd like to extract for use as
 an array key? No problem.
 
 ```php
-class AssociativeArrayObject
+class AssociativeArrayObject implements Hydratable
 {
     private static Hydrator $hydrator;
 
     public array $list;
 
-    public function hydrate($config)
+    public function hydrate($config, $options = []): bool
     {
         if (!isset(self::$hydrator)) {
             self::$hydrator = new Hydrator();
             self::$hydrator
                 ->addProperty(
                     Property::make('list')
-                        ->bind('array')
+                        ->bind('stdClass')
                         ->key('code')
                 )
                 ->bind(self::class);
         }
-        self::$hydrator->hydrate($this, $config);
+        return self::$hydrator->hydrate($this, $config);
     }
 }
 
@@ -256,210 +297,121 @@ Options
 ---
 The `options` parameter can contain these elements:
 
-- 'newLog' If missing or set true, Hydration's error log is cleared before any
-  processing.
 - 'parent' when instantiating a subclass, this is a reference to the parent class.
 - 'strict' Controls error handling. If strict is false, Hydration will ignore minor
-  issues such as additional properties. If strict is true, Hydration will return false
-  if any errors are encountered. If strict is a string, this will be taken as the name of
-  a Throwable class, and an instance of that class will be thrown.
+  issues. If strict is true, Hydration will throw an exception.
 
 Applications can also pass in their own context via options. The current options are
-available via the `$configureOptions` property. Option names starting with an underscore
+available via `Hydrator::getOptions()`. Option names starting with an underscore
 are guaranteed to not conflict with future options used by Hydration.
 
 Note that a copy of the options array is passed to subclass configuration, no data can
 be returned to the parent via this array.
 
-Filtering
------
-The properties of the configured object can be explicitly permitted by overriding the
-`configurePropertyAllow()` method, blocked by overriding the `configurePropertyBlock()`
-method, or ignored via the `configurePropertyIgnore()` method. Ignore takes precedence, then
-blocking, then allow. By default, attempts to set guarded properties
-are ignored, but if the $strict parameter is either true or the name of a `Throwable`
-class, then the configuration will terminate when the invalid parameter is encountered,
-unless it has been explicitly ignored.
+---
+##`class Hydrator`
 
-For a JSON input like this
-```json
-{
-    "depth": 15,
-    "length": 22,
-    "primary": "Red",
-    "width": 3
-}
-```
+---
+###`addProperty(Property $property)`
+Fluent. Attaches a property specification to the `Hydrator`. See `Property` for details.
 
-with a class that does not have the `primary` property, the result depends on the
-`strict` option:
+---
+###`bind($subject[, int $filter])`
+Fluent. Associates a `Hydrator` with the class to be hydrated. Bind will add any properties
+in the subject class that have not already been defined via `addProperty()`
+and which match the filter flag.
+
+`string|object $subject` This is the name or an instance of the class to bind the hydrator to.
+
+`int $filter` Filters automatically generated properties by visibility. The default is public. 
+Accepts any combination of ReflectionProperty::IS_PRIVATE, ReflectionProperty::IS_PROTECTED,
+and ReflectionProperty::IS_PUBLIC. 
+
+---
+###`getErrors()`
+Returns an array of errors generated during the last call to `hydrate()`
+the resulting array is empty if no errors were generated.
+
+---
+###`getOptions()`
+Returns the options used in the last call to `hydrate()`.
+
+---
+###`hydrate($target, $config[, $options])`
+Loads configuration data into an object structure.
+
+`object $target` The object to be hydrated.
+
+`string|object|array $config` Configuration data either as a string or the result of
+decoding a configuration file. The contents are determined by the `source` option.
+
+`array|null $options` Options are:
+- `object parent` A reference to the object containing $target (if any).
+- `string source` Format of the data in $config. Possible values:
+[json] | object | yaml 
+- `bool strict` If true, log and throw errors on any failure. If false, just log errors. Defaults to true.
+- Application specific options begin with an underscore and will be passed through unchanged.
+
+Returns true on success.
+
+Throws HydrationException on error.
+
+---
+
+###make($subject[, $filter])
+Fluent constructor.
+
+`string|object|null $subject` This is the name or an instance of the class to bind the hydrator to.
+
+`int $filter` Visibility filter. See `bind()`.
+
+---
+
+##`class Property`
+Properties are a powerful way to transform and validate user input, to
+ensure the hydrated structures are valid and consistent.
+
+---
+###`make($property[, $binding])`
+Fluent constructor.
+
+`string $property` Name of the property in the source data.
+`string|null $binding` Name of the class to create when hydrating the property.
+
+---
+###as($name)
+
+Fluent. Use a different name when storing the property.
+
+`string $property` The property name in the class.
+
+**Example**: In the source configuration, the user sees a property "app-name".
+Since hyphens are not valid in property names, we want to map that to appName in the object.
 ```php
-    class SomeClass {
-        use \Abivia\Hydration;
+Property::make('app-name')->as('appName');
+```
 
-        protected $depth;
-        protected $length;
-        protected $width;
-
-    }
-    $jsonDecoded = json_decode('some valid json string');
-    $obj = new SomeClass();
-    // Returns true
-    $obj->configure($jsonDecoded);
-    // Lazy validation: Returns true
-    $obj->configure($jsonDecoded, ['strict' => false]);
-    // Strict validation: Returns false
-    $obj->configure($jsonDecoded, ['strict' => true]);
-    // Strict validation: throws MyException
-    $obj->configure($jsonDecoded, ['strict' => 'MyException']);
- ```
-
-Initialization and Completion
 ---
-In many cases it is required that the object be in a known state before configuration,
-and that the configured object has acceptable values. `Hydration` supplies
-`configureInitialize()` and `configureComplete()` for this purpose. `configureInitialize()`
-can be used to return a previously instantiated object to a known state.
-`configureInitialize()` gets passed references to the configuration data and the options
-array, and is thus able to pre-process the inputs if required.
+###bind
 
-One use case for pre-processing during initialization is to allow shorthand expressions.
-For example, if you have an object with one property:
-```json
-{"name": "foo"}
-```
-Your application can support a shorthand expression:
-```json
-"somevalue"
-```
-With this code in the initialization:
-```php
-class MyClass
-{
-    protected function configureInitialize(&$config) {
-        if (is_string($config)) {
-            $obj = new stdClass;
-            $obj->name = $config;
-            $config = $obj;
-        }
-    }
-}
-```
-
-
-Validation
 ---
-Scalar properties can be validated with `configureValidate()`. This method takes the property name and the input value
-as arguments. The value is passed by reference so that the validation can enforce specific formats required by the
-object (for example by forcing case or cleaning out unwanted characters).
+###block
 
-The `configureComplete()` method provides a mechanism for object level validation. For example, this method could be
-used to validate a set of access credentials, logging an error or aborting the configuration process entirely if they
-are not valid.
-
-Property Name Mapping
 ---
-Since configuration files allow properties that are not valid PHP property names,
-`configurePropertyMap()` can be used to convert illegal input properties to valid PHP identifiers.
+###construct
 
-```php
-class MyClass
-{
-    protected function configurePropertyMap($property) {
-        if ($property[0] == '$') {
-            $property = 'dollar_' . substr($property, 1);
-        }
-        return $property;
-    }
-}
-```
-
-If the property does not reference another Hydration class then
-the method can also return an array containing a property name and array index.
-For example this json:
-
-```json
-{
-    "prop.one": "element one",
-    "prop.six": "element six"
-}
-```
-
-Can be used to create an array:
-
-````php
-$configured->prop = ['one' => 'element one', 'six' => 'element six'];
-````
-
-Contained Classes
+getBlocked
+getErrors
+getHydrateMethod
+getIgnored
+ignore
+key
+reflects
+setter
+source
+target
+toArray
+unblock
+validate
 ---
-The real power of Hydration is through `configureClassMap()` which can be
-used to instantiate and configure classes that are contained in the current
-class. Contained classes must either be `stdClass` or provide the
- `configure()` method, either via the `Hydration` trait or by providing
-their own method.
-
-`configureClassMap()` takes the name and value of a property as arguments and returns:
-
-- the name of a class to be instantiated and configured, or
-- an array or object that has the `className` property and any of the optional properties.
-
-### className (string|callable)
-`className` can be the name of a class that will be instantiated and configured,
-or it can be a callable that takes the current property value as an argument.
-This allows the creation of data-specific object classes.
-
-If a property `foo` returns an array of `['className' => 'MyClass']` or just
-the string `MyClass` then Hydration will instantiate a new `MyClass` and
-pass the value to the `configure()` method.
-
-### construct (bool)
-`className` is the name of a class that will be instantiated by passing the
- value to the class constructor.
-
-If a property `foo` returns an array of `['className' => 'DateInterval', 'construct' => true]`
-then Hydration will create a `new DateInterval($value)` and assign it to `foo`.
-
-### constructUnpack (bool)
-`className` is the name of a class that will be instantiated by passing the
- unpacked value (which must be an array) to the class constructor.
-
-If a property `foo` returns an array of `['className' => 'MyClass', 'constructUnpack' => true]`
-then Hydration will create a `new MyClass(...$value)` and assign it to `foo`.
-
-### key (string|callable)
-The `key` property is optional and tells Hydration to populate an array.
-
- - if `key` is absent or blank, the constructed object is appended to the array,
- - if `key` is a string, then it is taken as the name of a property or method (if
-`keyIsMethod` is true) in the constructed object, and this value is used as the
-key for an associative array, and
- - if `key` is a callable array, then it is called with the object under construction
-as an argument.
-
-### keyIsMethod (bool)
-The `keyIsMethod` property is only used when `key` is present and not a callable. When
-set, `key` is treated as a method of the constructed object. Typically this is a getter.
-
-### allowDups (bool)
-If Hydration is creating an associative array, the normal response to a duplicate
-key is to generate an error message. if the `allowDups` flag is present and set,
-no error is generated.
-
-Error Logging
--------------
-Any problems encountered during configuration are logged. An array of errors can be
-retrieved by calling the `configureGetErrors()` method. The error log is cleared by an
-application call to `configure()` unless the newLog option is set to false.
-
-Unit Tests and Examples
-========
-Unit tests are organized by PHP support level. Tests that use features of PHP
-that are not available in PHP 7.2 are maintained in separate directories.
-PHPUnit will automatically run tests up to your current PHP version but
-not above.
-
-The unit tests also contain a number of examples that should be helpful in
-understanding how Hydration works. More detailed
-examples with sample output can be found at
-https://gitlab.com/abivia/Hydration-examples
+###assign
