@@ -259,7 +259,7 @@ class ConfigurableTypeB
 
 }
 
-class ConfigurableTest extends TestCase
+class HydratorTest extends TestCase
 {
 
     static $configSource = [
