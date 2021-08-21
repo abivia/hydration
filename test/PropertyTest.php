@@ -68,6 +68,10 @@ class PropertyTest extends TestCase
         $this->assertEquals($msg, $obj->getBlockMessage());
 
         $target = new stdClass();
+        $this->assertFalse($obj->assign($target, 'nada', ['strict' => false]));
+
+        $this->expectException(HydrationException::class);
+        $this->expectExceptionMessage($msg);
         $this->assertFalse($obj->assign($target, 'nada'));
 
     }

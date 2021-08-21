@@ -39,7 +39,7 @@ class ExampleAssociativeArrayTest extends TestCase
 ]}
 ';
         $obj = new AssociativeArrayObject();
-        $obj->hydrate(json_decode($json));
+        $obj->hydrate($json);
         $this->assertEquals(['fb', 'tw', 'ig'], array_keys($obj->list));
         $this->assertEquals('Facebook', $obj->list['fb']->name);
     }

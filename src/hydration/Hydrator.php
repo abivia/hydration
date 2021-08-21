@@ -3,9 +3,9 @@ declare(strict_types=1);
 
 namespace Abivia\Hydration;
 
-use Error;
 use ReflectionClass;
 use ReflectionProperty;
+use Symfony\Component\Yaml\Yaml;
 
 /**
  * Copy information from an object created from a JSON configuration.
@@ -24,6 +24,11 @@ class Hydrator
      * @var array The options passed to the last hydrate() call, merged with defaults.
      */
     private array $options = [];
+
+    /**
+     * @var array Options stack for recursive hydration calls.
+     */
+    private array $optionStack = [];
 
     /**
      * @var array Reflection results, indexed by class.
@@ -71,6 +76,8 @@ class Hydrator
      * @param array $options Options.
      *
      * @return boolean
+     *
+     * @throws HydrationException
      */
     private function assign(
         object $target, Property $property, $value, array $options
@@ -151,7 +158,8 @@ class Hydrator
     }
 
     /**
-     * Get the error log
+     * Get the error log.
+     *
      * @return array
      */
     public function getErrors(): array
@@ -159,7 +167,12 @@ class Hydrator
         return $this->errorLog;
     }
 
-    public function getOptions()
+    /**
+     * Get the current option settings.
+     *
+     * @return array
+     */
+    public function getOptions(): array
     {
         return $this->options;
     }
@@ -168,70 +181,66 @@ class Hydrator
      * Load configuration data into an object structure.
      *
      * @param object $target The object being configured
-     * @param object|array $config Result from decoding a configuration file
-     *              (typically from JSON or YAML).
-     * @param array $options Strict error handling flag or option array.
+     * @param string|object|array $config Configuration data either as a string or the result of
+     *      decoding a configuration file.
+     * @param array $options Options are:
+     * parent:object A reference to the object containing $target (if any).
+     * source:string [json]|object|yaml Format of the data in $config
+     * strict:bool = true   Throw errors
+     * Application specific options begin with an underscore and will be passed through unchanged.
      *
      * @return bool True if all fields passed validation; if in strict mode
      *              true when all fields are defined class properties.
      *
-     * @throws \Exception
+     * @throws HydrationException
      */
     public function hydrate(object $target, $config, array $options = []): bool
     {
-        // Reset the error log
-        $this->errorLog = [];
+        array_push($this->optionStack, $this->options);
+        try {
+            // Reset the error log
+            $this->errorLog = [];
 
-        // Default strict unless set
-        if (!isset($options['strict'])) {
-            $options['strict'] = true;
-        }
-        // Save the options, then add/overwrite the parent reference for passing down.
-        $this->options = $options;
-        $subOptions = array_merge($this->options, ['parent' => &$this]);
+            // Merge in default options not set, normalize
+            $this->options = array_merge(['source' => 'json', 'strict' => true], $options);
+            $this->options['source'] = strtolower($this->options['source']);
 
-        // We should never see a scalar here.
-        if (!is_array($config) && !is_object($config)) {
-            $this->logError("Unexpected scalar value hydrating $this->subjectClass.");
-            return false;
-        }
+            if ($this->options['source'] !== 'object') {
+                $config = $this->parse($config);
+            }
 
-        // Step through each of the properties
-        $result = true;
-        foreach ($config as $origProperty => $value) {
+            // Add/overwrite the parent reference for use by child objects.
+            $subOptions = array_merge($this->options, ['parent' => &$target]);
 
-            // Ensure that the property exists.
-            if (!isset($this->sourceProperties[$origProperty])) {
-                if ($options['strict']) {
-                    $message = "Undefined property \"$origProperty\" in class $this->subjectClass.";
-                    $this->logError($message);
-                    throw new HydrationException($message);
+            // We should never see a scalar here.
+            if (!is_array($config) && !is_object($config)) {
+                throw new HydrationException(
+                    "Unexpected scalar value hydrating $this->subjectClass."
+                );
+            }
+
+            // Step through each of the properties
+            $result = true;
+            foreach ($config as $origProperty => $value) {
+
+                // Ensure that the property exists.
+                if (!isset($this->sourceProperties[$origProperty])) {
+                    if ($this->options['strict']) {
+                        $message = "Undefined property \"$origProperty\" in class $this->subjectClass.";
+                        $this->logError($message);
+                        throw new HydrationException($message);
+                    }
+                    continue;
                 }
-                continue;
-            }
 
-            // Skip ignored properties
-            $propertyMap = $this->sourceProperties[$origProperty];
-            if ($propertyMap->getIgnored()) {
-                continue;
-            }
-
-            // Soft or hard error on blocked properties.
-            if ($propertyMap->getBlocked()) {
-                $result = false;
-                $message = $propertyMap->getBlockMessage()
-                    ?? "Access to $origProperty in class $this->subjectClass is prohibited.";
-                $this->logError($message);
-                if ($options['strict']) {
-                    throw new HydrationException($message);
+                // Assign the value to the property.
+                $propertyMap = $this->sourceProperties[$origProperty];
+                if (!$this->assign($target, $propertyMap, $value, $subOptions)) {
+                    $result = false;
                 }
-                continue;
             }
-
-            // Assign the value to the property.
-            if (!$this->assign($target, $propertyMap, $value, $subOptions)) {
-                $result = false;
-            }
+        } finally {
+            array_pop($this->optionStack);
         }
 
         return $result;
@@ -270,6 +279,45 @@ class Hydrator
         }
 
         return $instance;
+    }
+
+    /**
+     * Parse a JSON/YAML input string into an object.
+     *
+     * @param string $config
+     *
+     * @return mixed
+     *
+     * @throws HydrationException
+     */
+    protected function parse(string $config)
+    {
+        switch ($this->options['source']) {
+            case 'json':
+            {
+                $config = json_decode($config);
+                break;
+            }
+            case 'yaml':
+            {
+                $config = Yaml::parse($config);
+                break;
+            }
+            default: {
+                throw new HydrationException(
+                    "Unknown source data format: $this->options['source']."
+                );
+
+            }
+        }
+        if ($config === null) {
+            throw new HydrationException(
+                "Error parsing source data as $this->options['source']."
+            );
+        }
+        $this->options['source'] = 'object';
+
+        return $config;
     }
 
 }

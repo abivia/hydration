@@ -28,7 +28,7 @@ class ExampleBasicTest extends TestCase
     {
         $json = '{"userName": "admin", "password": "insecure"}';
         $obj = new BasicObject();
-        $obj->hydrate(json_decode($json));
+        $obj->hydrate($json);
         $this->assertEquals('admin', $obj->userName);
         $this->assertEquals('insecure', $obj->password);
     }

@@ -185,8 +185,16 @@ class Property
     public function assign(object $target, $value, array $options = []): bool
     {
         $this->options = $options;
+        $this->options['strict'] ??= true;
         $this->errors = [];
         if ($this->blocked) {
+            $message = $this->getBlockMessage()
+                ?? "Access to $this->sourceProperty in class "
+                . get_class($target) . " is prohibited.";
+            $this->errors[] = $message;
+            if ($this->options['strict']) {
+                throw new HydrationException($message);
+            }
             return false;
         }
         if ($this->ignored) {

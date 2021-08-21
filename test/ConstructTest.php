@@ -120,7 +120,7 @@ class ConstructTest extends TestCase
         $input = new stdClass();
         $input->anInterval = 'P3M';
         $testObj = new ConfigConstruct();
-        $testObj->hydrate($input);
+        $testObj->hydrate($input, ['source' => 'object']);
         $this->assertInstanceOf(DateInterval::class, $testObj->anInterval);
         $this->assertEquals(3, $testObj->anInterval->m);
     }
@@ -132,7 +132,7 @@ class ConstructTest extends TestCase
         $testObj = new ConfigConstruct();
         $this->expectException(HydrationException::class);
         $this->expectExceptionMessage('Too few arguments');
-        $testObj->hydrate($input);
+        $testObj->hydrate($input, ['source' => 'object']);
     }
 
     public function testBadUnpack2()
@@ -142,7 +142,7 @@ class ConstructTest extends TestCase
         $testObj = new ConfigConstruct();
         $this->expectException(HydrationException::class);
         $this->expectExceptionMessage('Too few arguments');
-        $testObj->hydrate($input);
+        $testObj->hydrate($input, ['source' => 'object']);
     }
 
     public function testNoClass()
@@ -152,7 +152,7 @@ class ConstructTest extends TestCase
         $testObj = new ConfigConstruct();
         $this->expectException(HydrationException::class);
         $this->expectExceptionMessage('Unable to load class');
-        $testObj->hydrate($input);
+        $testObj->hydrate($input, ['source' => 'object']);
     }
 
     public function testNestedBadUnpack()
@@ -163,7 +163,7 @@ class ConstructTest extends TestCase
         $input->sub = $sub;
         $testObj = new NestedConstruct();
         $this->expectException(HydrationException::class);
-        $testObj->hydrate($input);
+        $testObj->hydrate($input, ['source' => 'object']);
         $errors = $testObj->getErrors();
     }
 
@@ -172,7 +172,7 @@ class ConstructTest extends TestCase
         $input = new stdClass();
         $input->anObject = ['one', 'two'];
         $testObj = new ConfigConstruct();
-        $testObj->hydrate($input);
+        $testObj->hydrate($input, ['source' => 'object']);
         $this->assertInstanceOf(Constructable::class, $testObj->anObject);
         $this->assertEquals('one', $testObj->anObject->a);
         $this->assertEquals('two', $testObj->anObject->b);

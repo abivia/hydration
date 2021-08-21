@@ -33,7 +33,7 @@ class ExampleSelectiveArrayTest extends TestCase
     {
         $json = '{"simple": { "a": "this is a", "*": "this is *"}}';
         $obj = new SelectiveArrayObject();
-        $obj->hydrate(json_decode($json));
+        $obj->hydrate($json);
         $this->assertEquals(
             [
                 'a' => 'this is a',
