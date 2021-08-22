@@ -5,7 +5,6 @@ namespace Abivia\Hydration;
 
 use ReflectionClass;
 use ReflectionException;
-use ReflectionNamedType;
 use ReflectionProperty;
 use Symfony\Component\Yaml\Yaml;
 
@@ -53,10 +52,49 @@ class Hydrator
     protected array $targetProperties = [];
 
     /**
+     * Add a list of properties to be hydrated.
+     *
+     * @param array $properties Elements are any of 'propertyName', ['sourceName', 'targetName']
+     * or a Property object.
+     *
+     * @return Hydrator
+     *
+     * @throws HydrationException
+     */
+    public function addProperties(array $properties): self
+    {
+        if ($this->subjectClass !== '') {
+            throw new HydrationException("Must add properties before binding to a class.");
+        }
+        foreach ($properties as $property) {
+            if (
+                is_array($property)
+                && isset($property[0]) && is_string($property[0])
+                && isset($property[1]) && is_string($property[1])
+            ) {
+                $property = Property::make($property[0])
+                    ->as($property[1]);
+            } elseif (is_string($property)) {
+                $property = Property::make($property);
+            } elseif (!$property instanceof Property) {
+                throw new HydrationException(
+                    "Array elements must be 'propertyName', ['sourceName', 'targetName']"
+                    . " or a Property object."
+                );
+            }
+            $this->targetProperties[$property->target()] = $property;
+        }
+
+        return $this;
+    }
+
+    /**
      * Add a property to be hydrated.
      *
-     * @param Property $property
+     * @param Property $property The property object to add.
+     *
      * @return Hydrator
+     *
      * @throws HydrationException
      */
     public function addProperty(Property $property): self
@@ -197,6 +235,64 @@ class Hydrator
     public function getOptions(): array
     {
         return $this->options;
+    }
+
+    /**
+     * Retrieve a Property by source name.
+     *
+     * @param string $name The name of the property in the source data.
+     *
+     * @return Property
+     *
+     * @throws HydrationException
+     */
+    public function getSource(string $name): Property
+    {
+        if (!$this->hasSource($name)) {
+            throw new HydrationException("Source property $name has not been defined.");
+        }
+
+        return $this->sourceProperties[$name];
+    }
+
+    /**
+     * Retrieve a Property by target name.
+     *
+     * @param string $name The name of the property in the target object.
+     * @return Property
+     * @throws HydrationException
+     */
+    public function getTarget(string $name): Property
+    {
+        if (!$this->hasTarget($name)) {
+            throw new HydrationException("Target property $name has not been defined.");
+        }
+
+        return $this->targetProperties[$name];
+    }
+
+    /**
+     * Check for a source property.
+     *
+     * @param string $name The name of the property in the source data.
+     *
+     * @return bool
+     */
+    public function hasSource(string $name): bool
+    {
+        return isset($this->sourceProperties[$name]);
+    }
+
+    /**
+     * Check for a target property.
+     *
+     * @param string $name The name of the property in the target object.
+     *
+     * @return bool
+     */
+    public function hasTarget(string $name): bool
+    {
+        return isset($this->targetProperties[$name]);
     }
 
     /**

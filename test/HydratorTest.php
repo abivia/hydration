@@ -337,7 +337,39 @@ class HydratorTest extends TestCase
 		$this->assertInstanceOf(ConfigurableSub::class, $obj);
 	}
 
-	public function testBadScalar()
+	public function testAddProperty() {
+        $hydrate = Hydrator::make()
+            ->addProperty(
+                Property::make('bob')->as('key')
+            )
+        ->bind(ConfigurableSub::class);
+        $this->assertTrue($hydrate->hasSource('bob'));
+        $property = $hydrate->getSource('bob');
+        $this->assertEquals('key', $property->target());
+        $this->assertFalse($hydrate->hasSource('carol'));
+        $this->assertFalse($hydrate->hasSource('key'));
+        $this->assertTrue($hydrate->hasTarget('key'));
+        $property = $hydrate->getTarget('key');
+        $this->assertEquals('bob', $property->source());
+    }
+
+    public function testAddProperties() {
+        $hydrate = Hydrator::make()
+            ->addProperties([
+                'subProp1',
+                ['george', 'subDynamic'],
+                Property::make('bob')->as('key')
+            ])
+            ->bind(ConfigurableSub::class, 0);
+        $this->assertTrue($hydrate->hasSource('subProp1'));
+        $this->assertTrue($hydrate->hasSource('george'));
+        $this->assertTrue($hydrate->hasSource('bob'));
+        $this->assertTrue($hydrate->hasTarget('subProp1'));
+        $this->assertTrue($hydrate->hasTarget('subDynamic'));
+        $this->assertTrue($hydrate->hasTarget('key'));
+    }
+
+    public function testBadScalar()
     {
         foreach (['json', 'yaml'] as $format) {
             $config = self::getConfig(__FUNCTION__, $format);

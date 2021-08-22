@@ -302,8 +302,19 @@ be returned to the parent via this array.
 ## `Hydrator`
 
 ---
-### Hydrator::addProperty(Property $property): self
+### Hydrator::addProperty($property): self
+
+`Property $property` The property object to add.
+
 Attaches a property specification to the `Hydrator`. See `Property` for details.
+
+---
+### Hydrator::addProperties(array $properties): self
+
+`array $properties` Elements are any of 'propertyName', ['sourceName', 'targetName'],
+or a Property object.
+
+Creates or attaches a list of properties to the `Hydrator`.
 
 ---
 ### Hydrator::bind($subject[, int $filter]): self
@@ -326,6 +337,36 @@ the resulting array is empty if no errors were generated.
 ### Hydrator::getOptions(): array
 
 Returns the options used in the last call to `hydrate()`.
+
+---
+### Hydrator::getSource($name): Property
+
+`string $name` The name of the property in the source data.
+
+Retrieve a Property by source name. Throws `HydrationException` if not found. Use
+`Hydration::hasSource()` to see if the property exists.
+
+---
+### Hydrator::getTarget($name): Property
+
+`string $name` The name of the property in the target object.
+
+Retrieve a Property by target name. Throws `HydrationException` if not found. Use
+`Hydration::hasTarget()` to see if the property exists.
+
+---
+### Hydrator::hasSource($name): bool
+
+`string $name` The name of the property in the source data.
+
+Check for a source property.
+
+---
+### Hydrator::hasTarget($name): bool
+
+`string $name` The name of the property in the target object.
+
+Check for a target property.
 
 ---
 ### Hydrator::hydrate($target, $config[, $options]): bool
