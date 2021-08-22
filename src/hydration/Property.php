@@ -291,15 +291,18 @@ class Property
 
                     // If the application is handling the assignment, pass it off
                     if ($this->setMethod !== '') {
-                        $target->{$this->setMethod}($obj, $this->options);
+                        if (!$target->{$this->setMethod}($obj, $this->options)) {
+                            $this->errors[] = "Failed to set $this->targetProperty"
+                                . " via {$this->setMethod}." ;
+                        }
                         continue;
                     }
 
                     // Store the new object into the array.
                     $key = $this->getArrayIndex($obj, $element);
                     if ($key !== null && !$this->duplicateKeys && isset($tempArray[$key])) {
-                        $this->errors[] = "Duplicate key \"$key\" configuring \$$this->sourceProperty in "
-                            . get_class($obj);
+                        $this->errors[] = "Duplicate key \"$key\" configuring"
+                            . " \$$this->sourceProperty in " . get_class($obj);
                     } else {
                         if ($key === null) {
                             $tempArray[] = $obj;
@@ -352,7 +355,9 @@ class Property
         }
         try {
             if ($this->setMethod !== '') {
-                $target->{$this->setMethod}($value, $this->options);
+                if (!$target->{$this->setMethod}($value, $this->options)) {
+                    $this->errors[] = "Failed to set $this->targetProperty via {$this->setMethod}." ;
+                }
             } elseif ($useArray && $this->arrayMode) {
                 $key = $this->getArrayIndex($target, $value);
                 // Assigning an array element
@@ -389,12 +394,17 @@ class Property
     /**
      * Set the class to store this property into, optionally the method for doing so.
      *
-     * @param string|null $binding A class name.
+     * @param string|object|null $binding A class name or an object of the class to be bound.
+     * If null, then the property is just a simple assignment.
+     * @param string $method The name of the method to call when hydrating this property.
      *
      * @return $this
      */
-    public function bind(?string $binding, string $method = 'hydrate'): self
+    public function bind($binding = null, string $method = 'hydrate'): self
     {
+        if (is_object($binding)) {
+            $binding = get_class($binding);
+        }
         $this->binding = $binding;
         $this->hydrateMethod = $method;
         $this->mode = $binding === null ? self::MODE_SIMPLE : self::MODE_CLASS;
@@ -413,6 +423,9 @@ class Property
     public function block(?string $message = null): self
     {
         $this->blocked = true;
+        if ($message === '') {
+            $message = null;
+        }
         $this->blockMessage = $message;
 
         return $this;
@@ -440,16 +453,16 @@ class Property
     /**
      * Set a class to be created via constructor.
      *
-     * @param string $objectClass Name of the class to be created.
+     * @param string $className Name of the class to be created.
      * @param bool $unpack If the data to be passed is an array, unpack it to individual arguments.
      *
      * @return $this
      *
      * @throws HydrationException
      */
-    public function construct(string $objectClass, bool $unpack = false): self
+    public function construct(string $className, bool $unpack = false): self
     {
-        $this->binding = $objectClass;
+        $this->binding = $className;
         $this->unpackArguments = $unpack;
         $this->mode = self::MODE_CONSTRUCT;
         if ($this->arrayMode) {
@@ -669,20 +682,20 @@ class Property
     /**
      * Set the property's reflection info.
      *
-     * @param ReflectionProperty|string|object $rp The target class, an object of that class, or
+     * @param ReflectionProperty|string|object $reflectProperty The target class, an object of that class, or
      * a ReflectionProperty.
      *
      * @return $this
      *
      * @throws HydrationException
      */
-    public function reflects($rp): self
+    public function reflects($reflectProperty): self
     {
-        if ($rp instanceof ReflectionProperty) {
-            $this->reflection = $rp;
+        if ($reflectProperty instanceof ReflectionProperty) {
+            $this->reflection = $reflectProperty;
         } else {
             try {
-                $reflectClass = new ReflectionClass($rp);
+                $reflectClass = new ReflectionClass($reflectProperty);
                 $this->reflection = $reflectClass->getProperty($this->targetProperty);
             } catch (ReflectionException $ex) {
                 throw new HydrationException($ex->getMessage());
@@ -769,8 +782,8 @@ class Property
     /**
      * Callback that uses the property value to return a suitable object for hydration.
      *
-     * @param Closure $callback A function that takes the property value as an argument and returns
-     * the appropriate class name.
+     * @param Closure $callback A function ($value, $options) that takes the property value as an
+     * argument and returns the appropriate class name.
      *
      * @return $this
      */

@@ -14,10 +14,12 @@ class DefaultConfig
      * Simulate a hydrator.
      * @param object $config
      */
-    public function hydrate(object $config, $options = [])
+    public function hydrate(object $config, $options = []): bool
     {
         $this->key = $config->key;
         $this->p1 = $config->p1;
+
+        return true;
     }
 
 }

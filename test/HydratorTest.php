@@ -45,9 +45,11 @@ class ConfigurableMain
     public $subClassArray;
     public $subDynamic;
 
-    public function addToCallable($obj)
+    public function addToCallable($obj): bool
     {
         $this->subCallable[] = $obj;
+
+        return true;
     }
 
     public function getErrors(): array
@@ -158,7 +160,6 @@ class ConfigurableMain
                     ->with(function ($value) {
                         return __NAMESPACE__ . '\\ConfigurableType' . ucfirst($value->type);
                     })
-                    ->bind(ConfigurableSub::class)
             )
             ->addProperty(Property::make('subClass', ConfigurableSub::class))
             ->addProperty(Property::make('subClass2', ConfigurableSub::class))

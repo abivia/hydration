@@ -2,6 +2,7 @@
 
 namespace Abivia\Hydration\Test;
 
+require 'objects/AltMethod.php';
 require 'objects/ConstructOneArg.php';
 require 'objects/DefaultConfig.php';
 require 'objects/PropertyJig.php';
@@ -47,8 +48,17 @@ class PropertyTest extends TestCase
     {
         $obj = Property::make('source');
         $this->assertEquals('hydrate', $obj->getHydrateMethod());
-        $obj->bind('stdClass', 'custom');
-        $this->assertEquals('custom', $obj->getHydrateMethod());
+        $obj->bind(Objects\AltMethod::class, 'populate');
+        $this->assertEquals('populate', $obj->getHydrateMethod());
+    }
+
+    public function testBindString()
+    {
+        $obj = Property::make('prop')
+            ->bind(Objects\PropertyJig::class);
+
+        // It is sufficient to not see an exception before we get here.
+        $this->assertTrue(true);
     }
 
     public function testBlock()
