@@ -282,17 +282,6 @@ fb, tw, ig
 Instagram
 ```
 
-Advanced Use
----
-
-- If you need to map properties, implement `configurePropertyMap()` where needed.
-- Add property validation by implementing `configureValidate()`.
-- Gate access to properties by implementing any of `configurePropertyAllow()`,
-  `configurePropertyBlock()` or `configurePropertyIgnore()`.
-- You can also initialize the class instance at run time with `configureInitialize()`.
-- Semantic validation of the result can be performed at the end of the loading process by
-  implementing `configureComplete()`.
-
 Options
 ---
 The `options` parameter can contain these elements:
@@ -309,15 +298,15 @@ Note that a copy of the options array is passed to subclass configuration, no da
 be returned to the parent via this array.
 
 ---
-##`class Hydrator`
+##`Hydrator`
 
 ---
-###`addProperty(Property $property)`
-Fluent. Attaches a property specification to the `Hydrator`. See `Property` for details.
+###Hydrator::addProperty(Property $property): self
+Attaches a property specification to the `Hydrator`. See `Property` for details.
 
 ---
-###`bind($subject[, int $filter])`
-Fluent. Associates a `Hydrator` with the class to be hydrated. Bind will add any properties
+###Hydrator::bind($subject[, int $filter]): self
+Associates a `Hydrator` with the class to be hydrated. Bind will add any properties
 in the subject class that have not already been defined via `addProperty()`
 and which match the filter flag.
 
@@ -328,17 +317,17 @@ Accepts any combination of ReflectionProperty::IS_PRIVATE, ReflectionProperty::I
 and ReflectionProperty::IS_PUBLIC. 
 
 ---
-###`getErrors()`
+###Hydrator::getErrors(): array
 Returns an array of errors generated during the last call to `hydrate()`
 the resulting array is empty if no errors were generated.
 
 ---
-###`getOptions()`
+###Hydrator::getOptions(): array
+
 Returns the options used in the last call to `hydrate()`.
 
 ---
-###`hydrate($target, $config[, $options])`
-Loads configuration data into an object structure.
+###Hydrator::hydrate($target, $config[, $options]): bool
 
 `object $target` The object to be hydrated.
 
@@ -352,38 +341,41 @@ decoding a configuration file. The contents are determined by the `source` optio
 - `bool strict` If true, log and throw errors on any failure. If false, just log errors. Defaults to true.
 - Application specific options begin with an underscore and will be passed through unchanged.
 
-Returns true on success.
+Loads configuration data into an object structure. Returns true on success.
 
 Throws HydrationException on error.
 
 ---
 
-###make($subject[, $filter])
-Fluent constructor.
+###Hydrator::make($subject[, $filter]): self
 
 `string|object|null $subject` This is the name or an instance of the class to bind the hydrator to.
 
 `int $filter` Visibility filter. See `bind()`.
 
+Fluent constructor.
+
 ---
 
-##`class Property`
+##`Property`
 Properties are a powerful way to transform and validate user input, to
 ensure the hydrated structures are valid and consistent.
 
 ---
-###`make($property[, $binding])`
-Fluent constructor.
+###Property::make($property[, $binding]): self
 
 `string $property` Name of the property in the source data.
+
 `string|null $binding` Name of the class to create when hydrating the property.
 
+Fluent constructor.
+
 ---
-###as($name)
+###Property::as($name): self
 
-Fluent. Use a different name when storing the property.
+`string $name` The property name in the class.
 
-`string $property` The property name in the class.
+Use a different name when storing the property.
 
 **Example**: In the source configuration, the user sees a property "app-name".
 Since hyphens are not valid in property names, we want to map that to appName in the object.
@@ -392,26 +384,145 @@ Property::make('app-name')->as('appName');
 ```
 
 ---
-###bind
+###Property::block([$message]): self
+
+`string|null $message` A custom message to be returned as the error.
+
+Prevent this property from being hydrated. Attempts to hydrate this property
+will generate a `HydrationException`. If a message is provided it will be in the
+exception, otherwise a default message is generated. See `unblock()`.
 
 ---
-###block
+###Property::unblock(): self
+
+Allow this property to be hydrated. Clears the `block()` setting.
 
 ---
-###construct
+###Property::ignore([$ignore]): self
 
-getBlocked
-getErrors
-getHydrateMethod
-getIgnored
-ignore
-key
-reflects
-setter
-source
-target
-toArray
-unblock
-validate
+`string|null $message` A custom message to be returned as the error.
+
+Prevent this property from being hydrated. Attempts to hydrate this property
+will generate a `HydrationException`. If a message is provided it will be in the
+exception, otherwise a default message is generated. Also see `unblock()`.
+
 ---
-###assign
+###Property::reflects($reflectProperty): self
+
+Sets the property's reflection info.
+
+`ReflectionProperty|string|object $reflectProperty` The target class, an object of that class, or
+a ReflectionProperty object.
+
+---
+###Property::bind($binding[, $method]): self
+Defines the class to be created when populating the property.
+
+`string|object|null $binding` A class name or an object of the class to be bound.
+If null, then the property is just a simple assignment.
+
+`string $method` The name of the method to call when hydrating this property.
+Defaults to 'hydrate'.
+
+---
+###Property::with($callback[, $method)]): self
+
+`Closure $callback` Function that returns the name of the class to be used when
+hydrating this property.
+
+This enables the creation of different objects based on the content of the data. The 
+Closure takes the property value and current options array as arguments.
+
+**Example:** Return a class based on the `type` property in the property value.
+```php
+Property::make('myProperty')
+    ->with(function ($value) {
+        return 'MyNamespace\BaseName' . ucfirst(strtolower($value->type));
+    })
+```
+
+---
+###Property::construct($className[, $unpack]): self
+
+`string $className` Name of the class to be created.
+
+`bool $unpack` If the data to be passed is an array, unpack it to individual arguments.
+
+Populate a class through the constructor. If `$unpack` is set and the property
+value is an array, the array is unpacked and passed through as individual arguments.
+This method is useful for populating PHP Classes, for example `DateInterval`.
+
+---
+###Property::setter($method): self
+
+`string $method` The name of a method in the target class.
+
+Invoke this method to set the value of the property.
+
+**Example:** See `test\ExampleSetterTest.php`
+
+---
+###Property::validate($fn): self
+
+`Closure $fn` Validation function ($value, $options):bool to return true on success.
+
+Function to validate the contents of a property before setting it.
+
+---
+###Property::toArray($castToArray): self
+
+---
+###Property::key([$key]): self
+
+`string|bool|Closure|null $key` Array index. Default is `true`
+
+Indicates that this property is an array, optopnally indicating how the array key
+should be calculated.
+
+If `$key` is `true`, then the array is created with integer keys starting at zero.
+
+If `$key` is s `string` then it specifies property in the value to be used as the index.
+
+If `$key` is a `Closure` then it is expected to return the array key as a string.
+
+If `$key` is `false`, `null`, or absent, then the property is not treated as an array. 
+
+
+---
+###Property::getBlocked(): bool
+
+Gets the current block state.
+
+---
+###Property::getErrors(): array
+
+Gets the current error list array.
+
+---
+###Property::getHydrateMethod(): string
+
+Gets the name of the method used to hydrate an object created for this property.
+
+---
+###Property::getIgnored(): bool
+
+Gets the current ignore state.
+
+---
+###Property::source(): string
+
+Returns the name of this property in the source data.
+
+---
+###Property::target(): string
+
+Returns the name of this property in the hydrated object.
+
+---
+###Property::assign($target, $value[, $options]): bool
+
+`object $target` The object being hydrated.
+`mixed $value` Value of the property.
+`array $options` Options (passed to any objects hydrated by this property).
+
+Assigns `$value` to the property in `$target`. Used by `Hydrator`.
