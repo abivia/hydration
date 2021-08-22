@@ -22,7 +22,7 @@
         }
     ],
     "support": {
-        "issues": "https://gitlab.com/abivia/configurable/issues"
+        "issues": "https://gitlab.com/abivia/hydration/issues"
     },
     "autoload": {
         "classmap": [
