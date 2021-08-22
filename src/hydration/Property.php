@@ -291,6 +291,7 @@ class Property
 
                     // If the application is handling the assignment, pass it off
                     if ($this->setMethod !== '') {
+                        $this->options['Property'] = $this;
                         if (!$target->{$this->setMethod}($obj, $this->options)) {
                             $this->errors[] = "Failed to set $this->targetProperty"
                                 . " via {$this->setMethod}." ;
@@ -355,6 +356,7 @@ class Property
         }
         try {
             if ($this->setMethod !== '') {
+                $this->options['Property'] = $this;
                 if (!$target->{$this->setMethod}($value, $this->options)) {
                     $this->errors[] = "Failed to set $this->targetProperty via {$this->setMethod}." ;
                 }

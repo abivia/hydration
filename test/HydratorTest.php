@@ -45,8 +45,12 @@ class ConfigurableMain
     public $subClassArray;
     public $subDynamic;
 
-    public function addToCallable($obj): bool
+    public function addToCallable($obj, $options): bool
     {
+        // Ensure we receive the Property object
+        if (!isset($options['Property']) || !$options['Property'] instanceof Property) {
+            return false;
+        }
         $this->subCallable[] = $obj;
 
         return true;

@@ -506,9 +506,10 @@ Invoke this method to set the value of the property.
 ---
 ### Property::validate($fn): self
 
-`Closure $fn` Validation function ($value, $options):bool to return true on success.
+`Closure $fn` Validation function ($value, $options):bool to return true on success. 
 
-Function to validate the contents of a property before setting it.
+Function to validate the contents of a property before setting it. `$options['Property']` contains
+a reference to the Property object.
 
 ---
 ### Property::toArray($castToArray): self
