@@ -16,6 +16,7 @@ test:php7.4:
       # Install & enable Xdebug for code coverage reports
       - pecl install xdebug
       - docker-php-ext-enable xdebug
+      - echo "xdebug.mode=coverage" >> /usr/local/etc/php/conf.d/xdebug.ini
 
       # Install composer
       - curl -sS https://getcomposer.org/installer | php
@@ -37,6 +38,7 @@ test:php8.0:
     # Install & enable Xdebug for code coverage reports
     - pecl install xdebug
     - docker-php-ext-enable xdebug
+    - echo "xdebug.mode=coverage" >> /usr/local/etc/php/conf.d/xdebug.ini
 
     # Install composer
     - curl -sS https://getcomposer.org/installer | php
