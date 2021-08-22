@@ -1,12 +1,15 @@
-#Abivia\Hydration
+# Abivia\Hydration
+
+[![coverage report](https://gitlab.com/abivia/hydration/badges/main/coverage.svg)](https://gitlab.com/abivia/hydration/-/commits/main) 
+[![pipeline status](https://gitlab.com/abivia/hydration/badges/main/pipeline.svg)](https://gitlab.com/abivia/hydration/-/commits/main)
 
 Hydration populates complex data structures from user editable JSON or YAML
 sources. If your application
 
 - has configurations with several levels of nesting,
 - needs to validate user editable data in configuration files,
-- is spending a lot of effort reading from the stdClass objects created by `json_decode()` or `yaml_parse()` to convert
-  them into your application's class structures, or
+- is spending a lot of effort converting the stdClass objects created by `json_decode()` or `yaml_parse()` to 
+  your application's class structures, or
 - is just using `stdClass` objects for configuration
 
 then Hydration is here to help.
@@ -32,7 +35,7 @@ creating `Property` objects for any properties that require special handling,
 validation, etc.
 
 
-##Example
+## Example
 
 ```php
 use Abivia\Hydration\Hydrator;
@@ -128,7 +131,7 @@ Environment Object
 )
 ```
 
-##Features
+## Features
 
 Hydration supports property mapping, gated properties (via block, and ignore methods),
 data validation, and data-driven class instantiation. It will map arrays of objects to
@@ -137,14 +140,14 @@ associative arrays of PHP classes that are indexed by any unique scalar property
 Loading can be either fault-tolerant or strict. Strict validation can either fail with a
 `false` result or by throwing an Exception.
 
-##Installation
+## Installation
 
 ```composer require abivia/hydration```
 
 Hydration uses the Symphony parser for YAML.
 
 
-##Basic Use
+## Basic Use
 
 - Provide a hydration method that initializes the hydrator.
 - If required, customize the hydration process by adding Property definitions.
@@ -185,11 +188,10 @@ admin, secret
 
 See `test/ExampleBasicTest.php` for a working example.
 
-Selectively Convert Objects to Associative Arrays
----
+## Selectively Convert Objects to Associative Arrays
 
-The `json_decode()` method has an option to force conversion of objects
-to arrays, but there is no way to get selective conversion. Hydration can
+The `json_decode()` method has an option to force conversion from object
+to array, but there is no way to get selective conversion. Hydration can
 do this via a class map to 'array'. See `test/ExampleSelectiveArrayTest.php`
 for a working example.
 
@@ -233,8 +235,7 @@ Will give this result
 ```
 
 
-Associative arrays using a property as the key
----
+## Associative arrays using a property as the key
 
 Have an array of objects with a property that you'd like to extract for use as
 an array key? No problem.
@@ -282,8 +283,8 @@ fb, tw, ig
 Instagram
 ```
 
-Options
----
+## Options
+
 The `options` parameter can contain these elements:
 
 - 'parent' when instantiating a subclass, this is a reference to the parent class.
@@ -298,14 +299,14 @@ Note that a copy of the options array is passed to subclass configuration, no da
 be returned to the parent via this array.
 
 ---
-##`Hydrator`
+## `Hydrator`
 
 ---
-###Hydrator::addProperty(Property $property): self
+### Hydrator::addProperty(Property $property): self
 Attaches a property specification to the `Hydrator`. See `Property` for details.
 
 ---
-###Hydrator::bind($subject[, int $filter]): self
+### Hydrator::bind($subject[, int $filter]): self
 Associates a `Hydrator` with the class to be hydrated. Bind will add any properties
 in the subject class that have not already been defined via `addProperty()`
 and which match the filter flag.
@@ -317,17 +318,17 @@ Accepts any combination of ReflectionProperty::IS_PRIVATE, ReflectionProperty::I
 and ReflectionProperty::IS_PUBLIC. 
 
 ---
-###Hydrator::getErrors(): array
+### Hydrator::getErrors(): array
 Returns an array of errors generated during the last call to `hydrate()`
 the resulting array is empty if no errors were generated.
 
 ---
-###Hydrator::getOptions(): array
+### Hydrator::getOptions(): array
 
 Returns the options used in the last call to `hydrate()`.
 
 ---
-###Hydrator::hydrate($target, $config[, $options]): bool
+### Hydrator::hydrate($target, $config[, $options]): bool
 
 `object $target` The object to be hydrated.
 
@@ -347,7 +348,7 @@ Throws HydrationException on error.
 
 ---
 
-###Hydrator::make($subject[, $filter]): self
+### Hydrator::make($subject[, $filter]): self
 
 `string|object|null $subject` This is the name or an instance of the class to bind the hydrator to.
 
@@ -357,12 +358,12 @@ Fluent constructor.
 
 ---
 
-##`Property`
+## `Property`
 Properties are a powerful way to transform and validate user input, to
 ensure the hydrated structures are valid and consistent.
 
 ---
-###Property::make($property[, $binding]): self
+### Property::make($property[, $binding]): self
 
 `string $property` Name of the property in the source data.
 
@@ -371,7 +372,7 @@ ensure the hydrated structures are valid and consistent.
 Fluent constructor.
 
 ---
-###Property::as($name): self
+### Property::as($name): self
 
 `string $name` The property name in the class.
 
@@ -384,7 +385,7 @@ Property::make('app-name')->as('appName');
 ```
 
 ---
-###Property::block([$message]): self
+### Property::block([$message]): self
 
 `string|null $message` A custom message to be returned as the error.
 
@@ -393,12 +394,12 @@ will generate a `HydrationException`. If a message is provided it will be in the
 exception, otherwise a default message is generated. See `unblock()`.
 
 ---
-###Property::unblock(): self
+### Property::unblock(): self
 
 Allow this property to be hydrated. Clears the `block()` setting.
 
 ---
-###Property::ignore([$ignore]): self
+### Property::ignore([$ignore]): self
 
 `string|null $message` A custom message to be returned as the error.
 
@@ -407,7 +408,7 @@ will generate a `HydrationException`. If a message is provided it will be in the
 exception, otherwise a default message is generated. Also see `unblock()`.
 
 ---
-###Property::reflects($reflectProperty): self
+### Property::reflects($reflectProperty): self
 
 Sets the property's reflection info.
 
@@ -415,7 +416,7 @@ Sets the property's reflection info.
 a ReflectionProperty object.
 
 ---
-###Property::bind($binding[, $method]): self
+### Property::bind($binding[, $method]): self
 Defines the class to be created when populating the property.
 
 `string|object|null $binding` A class name or an object of the class to be bound.
@@ -425,7 +426,7 @@ If null, then the property is just a simple assignment.
 Defaults to 'hydrate'.
 
 ---
-###Property::with($callback[, $method)]): self
+### Property::with($callback[, $method)]): self
 
 `Closure $callback` Function that returns the name of the class to be used when
 hydrating this property.
@@ -442,7 +443,7 @@ Property::make('myProperty')
 ```
 
 ---
-###Property::construct($className[, $unpack]): self
+### Property::construct($className[, $unpack]): self
 
 `string $className` Name of the class to be created.
 
@@ -453,7 +454,7 @@ value is an array, the array is unpacked and passed through as individual argume
 This method is useful for populating PHP Classes, for example `DateInterval`.
 
 ---
-###Property::setter($method): self
+### Property::setter($method): self
 
 `string $method` The name of a method in the target class.
 
@@ -462,21 +463,21 @@ Invoke this method to set the value of the property.
 **Example:** See `test\ExampleSetterTest.php`
 
 ---
-###Property::validate($fn): self
+### Property::validate($fn): self
 
 `Closure $fn` Validation function ($value, $options):bool to return true on success.
 
 Function to validate the contents of a property before setting it.
 
 ---
-###Property::toArray($castToArray): self
+### Property::toArray($castToArray): self
 
 ---
-###Property::key([$key]): self
+### Property::key([$key]): self
 
 `string|bool|Closure|null $key` Array index. Default is `true`
 
-Indicates that this property is an array, optopnally indicating how the array key
+Indicates that this property is an array, optionally indicating how the array key
 should be calculated.
 
 If `$key` is `true`, then the array is created with integer keys starting at zero.
@@ -489,37 +490,37 @@ If `$key` is `false`, `null`, or absent, then the property is not treated as an 
 
 
 ---
-###Property::getBlocked(): bool
+### Property::getBlocked(): bool
 
 Gets the current block state.
 
 ---
-###Property::getErrors(): array
+### Property::getErrors(): array
 
 Gets the current error list array.
 
 ---
-###Property::getHydrateMethod(): string
+### Property::getHydrateMethod(): string
 
 Gets the name of the method used to hydrate an object created for this property.
 
 ---
-###Property::getIgnored(): bool
+### Property::getIgnored(): bool
 
 Gets the current ignore state.
 
 ---
-###Property::source(): string
+### Property::source(): string
 
 Returns the name of this property in the source data.
 
 ---
-###Property::target(): string
+### Property::target(): string
 
 Returns the name of this property in the hydrated object.
 
 ---
-###Property::assign($target, $value[, $options]): bool
+### Property::assign($target, $value[, $options]): bool
 
 `object $target` The object being hydrated.
 `mixed $value` Value of the property.
