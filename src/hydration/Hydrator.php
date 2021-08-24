@@ -193,7 +193,11 @@ class Hydrator
                  */
                 $reflectType = $reflectProperty->getType();
                 if ($reflectType !== null) {
-                    $forClass = (string)$reflectType;
+                    if (method_exists($reflectType, 'getName')) {
+                        $forClass = $reflectType->getName();
+                    } else {
+                        $forClass = (string) $reflectType;
+                    }
                     if ($forClass[0] === '?') {
                         $forClass = substr($forClass, 1);
                     }
