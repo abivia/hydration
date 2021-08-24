@@ -8,6 +8,9 @@ cache:
   paths:
   - vendor/
 test:php7.4:
+  interruptible: true
+  except:
+  - /-unstable$/
   image: php:7.4
   before_script:
   - apt-get update -yqq
@@ -24,6 +27,9 @@ test:php7.4:
   script:
   - vendor/bin/phpunit --configuration configuration.xml --coverage-text --colors=never
 test:php8.0:
+  interruptible: true
+  except:
+    - /-unstable$/
   image: php:8.0
   before_script:
   - apt-get update -yqq
