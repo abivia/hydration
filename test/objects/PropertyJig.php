@@ -48,6 +48,11 @@ class PropertyJig
      */
     protected string $unspecified;
 
+    public function getEvenInt(): int
+    {
+        return $this->evenInt;
+    }
+
     public function getObjectClass(): object
     {
         return $this->objectClass;

@@ -440,7 +440,7 @@ class Property
      *
      * @return bool
      */
-    protected function checkValidity($value): bool
+    protected function checkValidity(&$value): bool
     {
         if ($this->validateClosure) {
             if (!($this->validateClosure)($value)) {

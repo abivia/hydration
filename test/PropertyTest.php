@@ -372,6 +372,24 @@ class PropertyTest extends TestCase
         $this->assertEquals(['Invalid value for evenInt'], $obj->getErrors());
     }
 
+    public function testValidationReference() {
+        $target = new Objects\PropertyJig();
+        $reflectClass = new \ReflectionClass($target);
+        $reflectProp = $reflectClass->getProperty('evenInt');
+
+        $obj = Property::make('evenInt')
+            ->as(Objects\PropertyJig::class)
+            ->validate(function (&$value) {
+                $value *= 2;
+                return true;
+            })
+            ->reflects($reflectProp);
+
+        $status = $obj->assign($target, 4);
+        $this->assertTrue($status);
+        $this->assertEquals(8, $target->getEvenInt());
+    }
+
     public function testValidationArray() {
         $target = new Objects\PropertyJig();
         $reflectClass = new \ReflectionClass($target);

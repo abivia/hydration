@@ -6,6 +6,7 @@ namespace Abivia\Hydration;
 use ReflectionClass;
 use ReflectionException;
 use ReflectionProperty;
+use ReflectionType;
 use Symfony\Component\Yaml\Yaml;
 
 /**
@@ -189,7 +190,7 @@ class Hydrator
             try {
                 // See if we can establish a binding to classes that implement Hydratable.
                 /**
-                 * @var \ReflectionType (ReflectionNamedType in PHP 8.0+)
+                 * @var ReflectionType (ReflectionNamedType in PHP 8.0+)
                  */
                 $reflectType = $reflectProperty->getType();
                 if ($reflectType !== null) {
@@ -316,6 +317,8 @@ class Hydrator
     {
         array_push($this->optionStack, $this->options);
         try {
+            $result = true;
+
             // Reset the error log
             $this->errorLog = [];
 
@@ -338,7 +341,6 @@ class Hydrator
             }
 
             // Step through each of the properties
-            $result = true;
             foreach ($config as $origProperty => $value) {
 
                 // Ensure that the property exists.
@@ -385,6 +387,7 @@ class Hydrator
      * @param int $filter Filter for property scopes to auto-bind.
      *
      * @return static
+     * @throws HydrationException
      * @throws ReflectionException
      */
     public static function make(
