@@ -22,4 +22,12 @@ class DefaultConfig
         return true;
     }
 
+    public static function makeP1(string $key, string $p1): DefaultConfig
+    {
+        $obj = new self();
+        $obj->key = $key;
+        $obj->p1 = $p1;
+        return $obj;
+    }
+
 }

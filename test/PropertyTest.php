@@ -9,6 +9,7 @@ require 'objects/PropertyJig.php';
 
 use Abivia\Hydration\HydrationException;
 use Abivia\Hydration\Property;
+use Abivia\Hydration\Test\Objects\DefaultConfig;
 use PHPUnit\Framework\TestCase;
 use stdClass;
 
@@ -69,6 +70,7 @@ class PropertyTest extends TestCase
 
         $obj->block();
         $this->assertTrue($obj->getBlocked());
+        $obj->block('');
 
         $obj->unblock();
         $this->assertFalse($obj->getBlocked());
@@ -119,6 +121,32 @@ class PropertyTest extends TestCase
         $status = $obj->assign($target, 'hydrated');
         $this->assertTrue($status);
         $this->assertEquals('hydrated', $target->getPrivateString());
+    }
+
+    public function testAssignScalarArrayPublic()
+    {
+        $target = new Objects\PropertyJig();
+        $reflectClass = new \ReflectionClass($target);
+        $reflectProp = $reflectClass->getProperty('arrayOfTestData');
+
+        $obj = Property::make('arrayOfTestData')
+            ->reflects($reflectProp);
+
+        $status = $obj->assign($target, [1, 2, 3, 'bob' => 4]);
+        $this->assertTrue($status);
+    }
+
+    public function testAssignScalarArrayProtected()
+    {
+        $target = new Objects\PropertyJig();
+        $reflectClass = new \ReflectionClass($target);
+        $reflectProp = $reflectClass->getProperty('arrayProtected');
+
+        $obj = Property::make('arrayProtected')
+            ->reflects($reflectProp);
+
+        $status = $obj->assign($target, [1, 2, 3, 'bob' => 4]);
+        $this->assertTrue($status);
     }
 
     public function testAssignArray()
@@ -174,6 +202,84 @@ class PropertyTest extends TestCase
         $status = $obj->assign($target, $data);
         $this->assertTrue($status);
         $this->assertEquals($data, $target->arrayOfTestData);
+    }
+
+    public function testAssignObjectArray()
+    {
+        $target = new Objects\PropertyJig();
+        $reflectClass = new \ReflectionClass($target);
+        $reflectProp = $reflectClass->getProperty('arrayOfTestData');
+
+        $obj = Property::make('arrayOfTestData')
+            ->reflects($reflectProp)
+            ->key('key')
+            ->bind(DefaultConfig::class);
+
+        $data = json_decode('[
+            {"key": "p1", "p1": "one"},
+            {"key": "p2", "p1": "two"},
+            {"key": "p3", "p1": "three"}
+        ]');
+        $expect = [
+            'p1' => DefaultConfig::makeP1('p1', 'one'),
+            'p2' => DefaultConfig::makeP1('p2', 'two'),
+            'p3' => DefaultConfig::makeP1('p3', 'three'),
+        ];
+        $status = $obj->assign($target, $data);
+        $this->assertTrue($status);
+        $this->assertEquals($expect, $target->arrayOfTestData);
+    }
+
+    public function testAssignObjectArrayNoDups()
+    {
+        $target = new Objects\PropertyJig();
+        $reflectClass = new \ReflectionClass($target);
+        $reflectProp = $reflectClass->getProperty('arrayOfTestData');
+
+        $obj = Property::make('arrayOfTestData')
+            ->reflects($reflectProp)
+            ->key('key')
+            ->bind(DefaultConfig::class);
+
+        $data = json_decode('[
+            {"key": "p1", "p1": "one"},
+            {"key": "p2", "p1": "two"},
+            {"key": "p3", "p1": "three"},
+            {"key": "p2", "p1": "two-two"}
+        ]');
+        $status = $obj->assign($target, $data);
+        $this->assertFalse($status);
+        $this->assertStringContainsStringIgnoringCase(
+            'duplicate key', $obj->getErrors()[0]
+        );
+    }
+
+    public function testAssignObjectArrayWithDups()
+    {
+        $target = new Objects\PropertyJig();
+        $reflectClass = new \ReflectionClass($target);
+        $reflectProp = $reflectClass->getProperty('arrayOfTestData');
+
+        $obj = Property::make('arrayOfTestData')
+            ->reflects($reflectProp)
+            ->key('key')
+            ->allowDuplicates()
+            ->bind(DefaultConfig::class);
+
+        $data = json_decode('[
+            {"key": "p1", "p1": "one"},
+            {"key": "p2", "p1": "two"},
+            {"key": "p3", "p1": "three"},
+            {"key": "p2", "p1": "two-two"}
+        ]');
+        $expect = [
+            'p1' => DefaultConfig::makeP1('p1', 'one'),
+            'p2' => DefaultConfig::makeP1('p2', 'two-two'),
+            'p3' => DefaultConfig::makeP1('p3', 'three'),
+        ];
+        $status = $obj->assign($target, $data);
+        $this->assertTrue($status);
+        $this->assertEquals($expect, $target->arrayOfTestData);
     }
 
     public function testAssignInstance()
@@ -283,6 +389,18 @@ class PropertyTest extends TestCase
         $this->assertEquals($expect, $target->objectClassArray);
     }
 
+    public function testAssignConflict() {
+        $target = new Objects\PropertyJig();
+        $reflectClass = new \ReflectionClass($target);
+        $reflectProp = $reflectClass->getProperty('objectClass');
+
+        $this->expectException(HydrationException::class);
+        $obj = Property::make('objectClass')
+            ->reflects($reflectProp)
+            ->key()
+            ->construct(Objects\ConstructOneArg::class);
+    }
+
     public function testAssignConstructor()
     {
         $target = new Objects\PropertyJig();
@@ -311,6 +429,26 @@ class PropertyTest extends TestCase
         $status = $obj->assign($target, 'viaMethod');
         $this->assertTrue($status);
         $this->assertEquals('viaMethod', $target->ignorable);
+
+        $status = $obj->assign($target, 'badViaMethod');
+        $this->assertFalse($status);
+    }
+
+    public function testNoHydrateMethod()
+    {
+        $target = new Objects\PropertyJig();
+        $reflectClass = new \ReflectionClass($target);
+        $reflectProp = $reflectClass->getProperty('objectClass');
+
+        $obj = Property::make('objectClass')
+            ->reflects($reflectProp)
+            ->bind(Objects\DefaultConfig::class, 'bogus');
+
+        $json = '"hello"';
+        $config = json_decode($json);
+        $this->expectException(HydrationException::class);
+        $this->expectExceptionMessage('no hydration method');
+        $obj->assign($target, $config);
     }
 
     public function testSetReflectionString()
@@ -340,7 +478,7 @@ class PropertyTest extends TestCase
         $this->expectException(HydrationException::class);
         $this->expectExceptionMessage('does not exist');
         Property::make('prop')
-            ->reflects('ClassDoesNotexist');
+            ->reflects('ClassDoesNotExist');
     }
 
     public function testSetReflectionBad2()

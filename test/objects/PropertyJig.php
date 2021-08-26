@@ -13,6 +13,11 @@ class PropertyJig
     public array $arrayOfTestData;
 
     /**
+     * @var array Contents vary on the test that uses this property.
+     */
+    protected array $arrayProtected;
+
+    /**
      * @var string This property generates an error if an attempt is made to set it.
      */
     public string $blocked;
@@ -68,6 +73,9 @@ class PropertyJig
 
     public function setIgnorable($value): bool
     {
+        if (substr($value, 0, 3) === 'bad') {
+            return false;
+        }
         $this->ignorable = $value;
 
         return true;

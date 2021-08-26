@@ -200,6 +200,7 @@ class Property
         if ($this->ignored) {
             return true;
         }
+        $this->options['Property'] = $this;
         if ($this->mode === self::MODE_SIMPLE) {
             if ($this->castArray && is_object($value)) {
                 $value = (array) $value;
@@ -280,18 +281,12 @@ class Property
 
                     // stdClass objects are already cloned. Nothing else to do here.
                     if(get_class($obj) !== 'stdClass') {
-                        if (!method_exists($obj, $this->hydrateMethod)) {
-                            throw new HydrationException(
-                                'Class ' . get_class($obj)
-                                . " has no hydration method $this->hydrateMethod" . '()'
-                            );
-                        }
+                        $this->checkHydrateMethod($obj);
                         $obj->{$this->hydrateMethod}($element, $this->options);
                     }
 
                     // If the application is handling the assignment, pass it off
                     if ($this->setMethod !== '') {
-                        $this->options['Property'] = $this;
                         if (!$target->{$this->setMethod}($obj, $this->options)) {
                             $this->errors[] = "Failed to set $this->targetProperty"
                                 . " via {$this->setMethod}." ;
@@ -325,6 +320,7 @@ class Property
 
                 // In construct mode, $value was used to hydrate $obj via constructor.
                 if ($this->mode !== self::MODE_CONSTRUCT) {
+                    $this->checkHydrateMethod($obj);
                     $obj->{$this->hydrateMethod}($value, $this->options);
                 }
                 $this->assignProperty($target, $obj);
@@ -356,7 +352,6 @@ class Property
         }
         try {
             if ($this->setMethod !== '') {
-                $this->options['Property'] = $this;
                 if (!$target->{$this->setMethod}($value, $this->options)) {
                     $this->errors[] = "Failed to set $this->targetProperty via {$this->setMethod}." ;
                 }
@@ -434,6 +429,21 @@ class Property
     }
 
     /**
+     * Make sure the specified hydration method exists.
+     *
+     * @param object $target
+     * @throws HydrationException
+     */
+    protected function checkHydrateMethod(object $target)
+    {
+        if (!method_exists($target, $this->hydrateMethod)) {
+            throw new HydrationException(
+                'Class ' . get_class($target)
+                . " has no hydration method $this->hydrateMethod" . '()'
+            );
+        }
+    }
+    /**
      * Ensure that the supplied data is valid.
      *
      * @param mixed $value The data to be validated.
@@ -443,7 +453,7 @@ class Property
     protected function checkValidity(&$value): bool
     {
         if ($this->validateClosure) {
-            if (!($this->validateClosure)($value)) {
+            if (!($this->validateClosure)($value, $this->options)) {
                 $this->errors[] = "Invalid value for $this->sourceProperty";
                 return false;
             }
@@ -507,7 +517,7 @@ class Property
             return $value->{$this->arrayKey};
         }
         if ($this->arrayKeyClosure !== null) {
-            return ($this->arrayKeyClosure)($target, $value);
+            return ($this->arrayKeyClosure)($target, $value, $this->options);
         }
 
         return $default;

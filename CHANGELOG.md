@@ -1,6 +1,9 @@
 # Change log for Abivia\Hydration
 
-##1.0.3
+## 1.0.4
+- Use the options array to pass the current Property into all closures and method calls.
+
+## 1.0.3
 - Allow passing of the value for validation into the validation closure by reference.
 
 ## 1.0.2
