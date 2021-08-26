@@ -373,6 +373,32 @@ class HydratorTest extends TestCase
         $this->assertTrue($hydrate->hasTarget('key'));
     }
 
+    public function testAddPropertiesWithOptions() {
+        $hydrate = Hydrator::make()
+            ->addProperties(
+                ['subProp1'],
+                [
+                    'ignore' => true,
+                    'construct' => ['SomeClass', true],
+                    'validate' => function ($value) { return $value == 5;},
+                    'as' => 'should be ignored'
+                ]
+            )
+            ->bind(ConfigurableSub::class, 0);
+        $this->assertTrue($hydrate->hasSource('subProp1'));
+        $prop = $hydrate->getSource('subProp1');
+        $this->assertTrue($prop->getIgnored());
+        $this->assertEquals('SomeClass', $prop->getClass());
+    }
+
+    public function testAddPropertiesBad() {
+        $this->expectException(HydrationException::class);
+        $this->expectExceptionMessage('Array elements must be');
+        Hydrator::make()
+            ->addProperties([new StdClass()])
+            ->bind(ConfigurableSub::class, 0);
+    }
+
     public function testBadScalar()
     {
         foreach (['json', 'yaml'] as $format) {

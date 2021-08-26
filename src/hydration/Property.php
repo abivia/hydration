@@ -289,7 +289,7 @@ class Property
                     if ($this->setMethod !== '') {
                         if (!$target->{$this->setMethod}($obj, $this->options)) {
                             $this->errors[] = "Failed to set $this->targetProperty"
-                                . " via {$this->setMethod}." ;
+                                . " via $this->setMethod." ;
                         }
                         continue;
                     }
@@ -353,7 +353,7 @@ class Property
         try {
             if ($this->setMethod !== '') {
                 if (!$target->{$this->setMethod}($value, $this->options)) {
-                    $this->errors[] = "Failed to set $this->targetProperty via {$this->setMethod}." ;
+                    $this->errors[] = "Failed to set $this->targetProperty via $this->setMethod." ;
                 }
             } elseif ($useArray && $this->arrayMode) {
                 $key = $this->getArrayIndex($target, $value);
@@ -531,6 +531,17 @@ class Property
     public function getBlocked(): bool
     {
         return $this->blocked;
+    }
+
+    /**
+     * Get the name of the class this property is bound to. If the class is computed via a
+     * closure, null is returned.
+     *
+     * @return string|null
+     */
+    public function getClass(): ?string
+    {
+        return $this->binding;
     }
 
     /**

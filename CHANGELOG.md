@@ -1,5 +1,10 @@
 # Change log for Abivia\Hydration
 
+## 1.0.5
+- Added `options` argument to Hydrator::addProperties() to bulk configure the properties, e.g.
+with a common validation method or ignore status.
+- Added Property::getClass(). If the associated class is constant, this gets the class name.
+
 ## 1.0.4
 - Use the options array to pass the current Property into all closures and method calls.
 

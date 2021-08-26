@@ -5,6 +5,7 @@ namespace Abivia\Hydration;
 
 use ReflectionClass;
 use ReflectionException;
+use ReflectionMethod;
 use ReflectionProperty;
 use ReflectionType;
 use Symfony\Component\Yaml\Yaml;
@@ -57,12 +58,15 @@ class Hydrator
      *
      * @param array $properties Elements are any of 'propertyName', ['sourceName', 'targetName']
      * or a Property object.
+     * @param array $options Common attributes to apply to the new properties. Options are any
+     * public method of the Property class, except __construct, as, assign, make, and reflects.
+     * Use an array to pass multiple arguments.
      *
      * @return Hydrator
      *
      * @throws HydrationException
      */
-    public function addProperties(array $properties): self
+    public function addProperties(array $properties, array $options = []): self
     {
         if ($this->subjectClass !== '') {
             throw new HydrationException("Must add properties before binding to a class.");
@@ -82,6 +86,26 @@ class Hydrator
                     "Array elements must be 'propertyName', ['sourceName', 'targetName']"
                     . " or a Property object."
                 );
+            }
+            if (count($options)) {
+                // Get the public methods
+                $propReflect = new ReflectionClass(Property::class);
+                $methods = [];
+                foreach ($propReflect->getMethods(ReflectionMethod::IS_PUBLIC) as $reflectionMethod) {
+                    $name = $reflectionMethod->getName();
+                    if (!in_array($name, ['__construct', 'as', 'assign', 'make', 'reflects'])) {
+                        $methods[$name] = $reflectionMethod;
+                    }
+                }
+                foreach ($options as $optionName => $optionValue) {
+                    if (isset($methods[$optionName])) {
+                        if (is_array($optionValue)) {
+                            $property->{$optionName}(...$optionValue);
+                        } else {
+                            $property->{$optionName}($optionValue);
+                        }
+                    }
+                }
             }
             $this->targetProperties[$property->target()] = $property;
         }

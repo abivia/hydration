@@ -309,10 +309,14 @@ be returned to the parent via this array.
 Attaches a property specification to the `Hydrator`. See `Property` for details.
 
 ---
-### Hydrator::addProperties(array $properties): self
+### Hydrator::addProperties($properties, $options): self
 
 `array $properties` Elements are any of 'propertyName', ['sourceName', 'targetName'],
 or a Property object.
+
+`array $options` Common attributes to apply to the new properties. Options are any
+public method of the Property class, except __construct, as, assign, make, and reflects.
+Use an array to pass multiple arguments.
 
 Creates or attaches a list of properties to the `Hydrator`.
 
@@ -535,6 +539,12 @@ If `$key` is `false`, `null`, or absent, then the property is not treated as an 
 ### Property::getBlocked(): bool
 
 Gets the current block state.
+
+---
+### Property::getClass(): ?string
+
+Gets the class associated with this property. If the class is computed via a closure,
+the method returns `null`.
 
 ---
 ### Property::getErrors(): array
