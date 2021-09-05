@@ -1,11 +1,15 @@
 <?php
 
-namespace Abivia\Configurable\Test;
+namespace Abivia\Hydration\Test;
 
+require_once 'objects/DefaultConfig.php';
+
+use Abivia\Hydration\EncoderRule;
 use Abivia\Hydration\Hydratable;
 use Abivia\Hydration\HydrationException;
 use Abivia\Hydration\Hydrator;
 use Abivia\Hydration\Property;
+use Abivia\Hydration\Test\objects\DefaultConfig;
 use Exception;
 use PHPUnit\Framework\TestCase;
 use stdClass;
@@ -95,9 +99,9 @@ class ConfigurableMain
                     $obj = new ConfigurableSub();
                     $result = $obj->hydrate($config, self::$hydrator->getOptions());
                     if (!$result) {
-    //                  $this->configureErrors = array_merge(
-    //                      $this->configureErrors, $obj->configureGetErrors()
-    //                  );
+                        //                  $this->configureErrors = array_merge(
+                        //                      $this->configureErrors, $obj->configureGetErrors()
+                        //                  );
                         return false;
                     }
                     $this->genericForSubConfiguration->subClass[$key] = $obj;
@@ -121,7 +125,7 @@ class ConfigurableMain
             ->addProperty(
                 Property::make('class')
                     ->as('mappedClass')
-                    //->bind(ConfigurableSub::class)
+            //->bind(ConfigurableSub::class)
             )
             ->addProperty(Property::make('doNotConfigure')->block())
             ->addProperty(Property::make('ignored')->ignore())
@@ -171,8 +175,7 @@ class ConfigurableMain
                 ->key()
                 ->bind(ConfigurableSub::class)
             )
-            ->bind(self::class)
-        ;
+            ->bind(self::class);
     }
 
 }
@@ -190,17 +193,18 @@ class ConfigurableSub
     public $notConfigurable;
     public $subProp1;
 
-    public function getErrors(): array
-    {
-        return self::$hydrator->getErrors();
-    }
-
     public function checkOption($name)
     {
         return self::$hydrator->getOptions()[$name];
     }
 
-    public function getKeyP() {
+    public function getErrors(): array
+    {
+        return self::$hydrator->getErrors();
+    }
+
+    public function getKeyP()
+    {
         return $this->keyP;
     }
 
@@ -221,8 +225,7 @@ class ConfigurableSub
                 Property::make('notConfigurable')
                     ->block()
             )
-            ->bind(self::class, Hydrator::ALL_NONSTATIC_PROPERTIES)
-        ;
+            ->bind(self::class, Hydrator::ALL_NONSTATIC_PROPERTIES);
     }
 
 }
@@ -293,7 +296,7 @@ class HydratorTest extends TestCase
         'testSubclassArrayNewAssocNoDupKeys' => '{"subAssoc":[{"key":"item0","subProp1":"e0"},{"key":"item0","subProp1":"e1"}]}',
         'testSubclassArrayNewAssocP' => '{"subAssocP":[{"keyP":"item0","subProp1":"e0"},{"keyP":"item1","subProp1":"e1"}]}',
         'testSubclassArrayNewEmpty' => '{"subClass":[]}',
-        'testSubclassDynamic'  => '{"subDynamic":['
+        'testSubclassDynamic' => '{"subDynamic":['
             . '{"key":"item0","type":"a","propA":"e0"},'
             . '{"key":"item1","type":"b","propB":"e1"}]'
             . '}',
@@ -333,31 +336,8 @@ class HydratorTest extends TestCase
         return $result;
     }
 
-	public function testConfigurableInstantiation()
+    public function testAddProperties()
     {
-        $obj = new ConfigurableMain();
-		$this->assertInstanceOf(ConfigurableMain::class, $obj);
-        $obj = new ConfigurableSub();
-		$this->assertInstanceOf(ConfigurableSub::class, $obj);
-	}
-
-	public function testAddProperty() {
-        $hydrate = Hydrator::make()
-            ->addProperty(
-                Property::make('bob')->as('key')
-            )
-        ->bind(ConfigurableSub::class);
-        $this->assertTrue($hydrate->hasSource('bob'));
-        $property = $hydrate->getSource('bob');
-        $this->assertEquals('key', $property->target());
-        $this->assertFalse($hydrate->hasSource('carol'));
-        $this->assertFalse($hydrate->hasSource('key'));
-        $this->assertTrue($hydrate->hasTarget('key'));
-        $property = $hydrate->getTarget('key');
-        $this->assertEquals('bob', $property->source());
-    }
-
-    public function testAddProperties() {
         $hydrate = Hydrator::make()
             ->addProperties([
                 'subProp1',
@@ -373,14 +353,17 @@ class HydratorTest extends TestCase
         $this->assertTrue($hydrate->hasTarget('key'));
     }
 
-    public function testAddPropertiesWithOptions() {
+    public function testAddPropertiesWithOptions()
+    {
         $hydrate = Hydrator::make()
             ->addProperties(
                 ['subProp1'],
                 [
                     'ignore' => true,
                     'construct' => ['SomeClass', true],
-                    'validate' => function ($value) { return $value == 5;},
+                    'validate' => function ($value) {
+                        return $value == 5;
+                    },
                     'as' => 'should be ignored'
                 ]
             )
@@ -391,12 +374,40 @@ class HydratorTest extends TestCase
         $this->assertEquals('SomeClass', $prop->getClass());
     }
 
-    public function testAddPropertiesBad() {
+    public function testAddProperties_Bad()
+    {
         $this->expectException(HydrationException::class);
-        $this->expectExceptionMessage('Array elements must be');
+        $this->expectExceptionMessage("Expected 'propertyName'");
         Hydrator::make()
             ->addProperties([new StdClass()])
             ->bind(ConfigurableSub::class, 0);
+    }
+
+    public function testAddProperty()
+    {
+        $hydrate = Hydrator::make()
+            ->addProperty(
+                Property::make('bob')->as('key')
+            )
+            ->bind(ConfigurableSub::class);
+        $this->assertTrue($hydrate->hasSource('bob'));
+        $property = $hydrate->getSource('bob');
+        $this->assertEquals('key', $property->target());
+        $this->assertFalse($hydrate->hasSource('carol'));
+        $this->assertFalse($hydrate->hasSource('key'));
+        $this->assertTrue($hydrate->hasTarget('key'));
+        $property = $hydrate->getTarget('key');
+        $this->assertEquals('bob', $property->source());
+    }
+
+    public function testAddProperty_Bad()
+    {
+        $hydrate = Hydrator::make()
+            ->bind(ConfigurableSub::class);
+        $this->expectException(HydrationException::class);
+        $hydrate->addProperty(
+            Property::make('bob')->as('key')
+        );
     }
 
     public function testBadScalar()
@@ -408,9 +419,282 @@ class HydratorTest extends TestCase
             $this->expectExceptionMessage('Unexpected scalar value');
             $obj->hydrate($config, ['source' => $format]);
         }
-	}
+    }
 
-	public function testSimpleValid()
+    public function testConfigurableInstantiation()
+    {
+        $obj = new ConfigurableMain();
+        $this->assertInstanceOf(ConfigurableMain::class, $obj);
+        $obj = new ConfigurableSub();
+        $this->assertInstanceOf(ConfigurableSub::class, $obj);
+    }
+
+    public function testGetSource()
+    {
+        $obj = new Hydrator();
+        $obj->addProperties(['prop1'])->bind(ConfigurableMain::class);
+
+        $this->assertInstanceOf(Property::class, $obj->getSource('prop1'));
+
+        $this->expectException(HydrationException::class);
+        $obj->getSource('nope');
+    }
+
+    public function testGetSources()
+    {
+        $obj = new Hydrator();
+        $obj->addProperties(['prop1'])->bind(ConfigurableMain::class);
+
+        $this->assertArrayHasKey('prop1', $obj->getSources());
+    }
+
+    public function testGetTarget()
+    {
+        $obj = new Hydrator();
+        $obj->addProperties(['foo', 'bar']);
+
+        $this->assertInstanceOf(Property::class, $obj->getTarget('bar'));
+
+        $this->expectException(HydrationException::class);
+        $obj->getSource('nope');
+    }
+
+    public function testGetTargets()
+    {
+        $obj = new Hydrator();
+        $obj->addProperties(['foo', 'bar']);
+
+        $this->assertArrayHasKey('bar', $obj->getTargets());
+    }
+
+    public function testEncode()
+    {
+        $hydrator = Hydrator::make()
+            ->addProperties(['key', 'p1'])
+            ->addProperties(['a1', 'o1'], ['ignore' => true])
+            ->bind(DefaultConfig::class);
+        $source = new DefaultConfig();
+        $source->key = 'someKey';
+        $source->p1 = 'this is p1';
+        $result = $hydrator->encode($source);
+        $expect = new stdClass();
+        $expect->key = 'someKey';
+        $expect->p1 = 'this is p1';
+        $this->assertEquals($expect, $result);
+    }
+
+    public function testEncodeRules()
+    {
+        $hydrator = Hydrator::make()
+            ->addProperties(['key', 'p1'])
+            ->addProperties(['a1', 'o1'], ['ignore' => true])
+            ->bind(DefaultConfig::class);
+        $source = new DefaultConfig();
+        $source->key = 'someKey';
+        $source->p1 = 'this is p1';
+        $topRule = new EncoderRule();
+        $topRule->define('transform', function (&$value) {
+            $value = $value->key . '<==>' . $value->p1;
+        });
+        $result = $hydrator->encode($source, $topRule);
+        $expect = new stdClass();
+        $expect = 'someKey<==>this is p1';
+        $this->assertEquals($expect, $result);
+    }
+
+    /**
+     * Ensure that nested calls to configure do not modify the source data.
+     */
+    public function testNestedDoesNotCorruptSource()
+    {
+        $json = '{
+            "genericForSubConfiguration":{
+                "subClass":[{"subProp1":"e0"},{"subProp1":"e1"}]
+            }
+        }';
+
+        $source = json_decode($json);
+        $config = json_decode($json);
+        $obj = new ConfigurableMain();
+        $this->assertTrue($obj->hydrate($config, ['source' => 'object']));
+        $this->assertEquals($source, $config);
+    }
+
+    /**
+     * An attempt to set a blocked property generates an error in relaxed mode.
+     */
+    public function testPropertyAllow()
+    {
+        $config = '{"notConfigurable":"purple"}';
+        $obj = new ConfigurableSub();
+        $obj->notConfigurable = 'uninitialized';
+        $result = $obj->hydrate($config, ['strict' => false]);
+        $this->assertFalse($result);
+        $this->assertEquals('uninitialized', $obj->notConfigurable);
+        $this->assertStringContainsStringIgnoringCase(
+            'prohibited', $obj->getErrors()[0]
+        );
+    }
+
+    /**
+     * A strict attempt to set a blocked property causes an exception.
+     */
+    public function testPropertyAllowStrict()
+    {
+        $config = '{"notConfigurable":"purple"}';
+        $obj = new ConfigurableSub();
+        $obj->notConfigurable = 'uninitialized';
+        $this->expectException(HydrationException::class);
+        $this->expectExceptionMessage('prohibited');
+        $obj->hydrate($config, ['strict' => true]);
+    }
+
+    /**
+     * ensure that blocked properties can't be set.
+     */
+    public function testPropertyBlock()
+    {
+        $config = '{"doNotConfigure":"purple"}';
+        $obj = new ConfigurableMain();
+        $obj->doNotConfigure = 'uninitialized';
+        $this->expectException(HydrationException::class);
+        $this->expectExceptionMessage('prohibited');
+        $obj->hydrate($config, ['strict' => true]);
+    }
+
+    public function testPropertyMapping()
+    {
+        $config = self::getConfig(__FUNCTION__, 'json');
+        $obj = new ConfigurableMain();
+        $obj->mappedClass = 'uninitialized';
+        $result = $obj->hydrate($config);
+        if (!$result) {
+            print_r($obj->getErrors());
+        }
+        $this->assertTrue($result);
+        $this->assertEquals('purple', $obj->mappedClass);
+        $this->assertEquals([], $obj->getErrors());
+    }
+
+    public function testPropertyMappingArray()
+    {
+        $config = self::getConfig(__FUNCTION__, 'json');
+        $obj = new ConfigurableMain();
+        $result = $obj->hydrate($config);
+        if (!$result) {
+            print_r($obj->getErrors());
+        }
+        $this->assertTrue($result);
+        $this->assertEquals(['array1' => 'one', 'array5' => 'five'], $obj->propArray);
+        $this->assertEquals([], $obj->getErrors());
+    }
+
+    /**
+     * Make sure a basic empty array returns an empty array
+     */
+    public function testSimpleEmptyArray()
+    {
+        foreach (['json', 'yaml'] as $format) {
+            $config = self::getConfig(__FUNCTION__, $format);
+            $obj = new ConfigurableMain();
+            $obj->prop2 = 'uninitialized';
+            $this->assertTrue($obj->hydrate($config, ['source' => $format]));
+            $this->assertEquals([], $obj->prop2);
+            $this->assertEquals([], $obj->getErrors());
+        }
+    }
+
+    /**
+     * The presence of a declared but ignored property succeeds but does not change
+     * the value in relaxed mode.
+     */
+    public function testSimpleIgnoreRelaxed()
+    {
+        foreach (['json', 'yaml'] as $format) {
+            $config = self::getConfig(__FUNCTION__, $format);
+            $obj = new ConfigurableMain();
+            $obj->ignored = 'uninitialized';
+            $this->assertTrue($obj->hydrate($config, ['source' => $format]));
+            $this->assertEquals('uninitialized', $obj->ignored);
+            $this->assertEquals([], $obj->getErrors());
+        }
+    }
+
+    /**
+     * The presence of a declared but ignored property succeeds but does not change
+     * the value in strict mode.
+     */
+    public function testSimpleIgnoreStrict()
+    {
+        foreach (['json', 'yaml'] as $format) {
+            $config = self::getConfig(__FUNCTION__, $format);
+            $obj = new ConfigurableMain();
+            $obj->ignored = 'uninitialized';
+            $this->assertTrue(
+                $obj->hydrate($config, ['source' => $format, 'strict' => true])
+            );
+            $this->assertEquals('uninitialized', $obj->ignored);
+            $this->assertEquals([], $obj->getErrors());
+        }
+    }
+
+    public function testSimpleInvalid()
+    {
+        foreach (['json', 'yaml'] as $format) {
+            $config = self::getConfig(__FUNCTION__, $format);
+            $obj = new ConfigurableMain();
+            $obj->prop1 = 'uninitialized';
+            $this->assertFalse($obj->hydrate($config, ['source' => $format]));
+            $this->assertEquals('uninitialized', $obj->prop1);
+            $this->assertStringContainsStringIgnoringCase(
+                'invalid value',
+                $obj->getErrors()[0]
+            );
+        }
+    }
+
+    public function testSimpleUndeclaredRelaxed()
+    {
+        foreach (['json', 'yaml'] as $format) {
+            $config = self::getConfig(__FUNCTION__, $format);
+            $obj = new ConfigurableMain();
+            $obj->prop1 = 'uninitialized';
+            $this->assertTrue(
+                $obj->hydrate($config, ['source' => $format, 'strict' => false])
+            );
+            $this->assertEquals('uninitialized', $obj->prop1);
+            $this->assertEquals([], $obj->getErrors());
+        }
+    }
+
+    /**
+     * The presence of an undeclared property causes configure() to fail in strict mode.
+     */
+    public function testSimpleUndeclaredStrict()
+    {
+        foreach (['json', 'yaml'] as $format) {
+            $config = self::getConfig(__FUNCTION__, $format);
+            $obj = new ConfigurableMain();
+            $obj->prop1 = 'uninitialized';
+            $this->expectException(HydrationException::class);
+            $this->expectExceptionMessage('Undefined property');
+            $obj->hydrate($config, ['source' => $format, 'strict' => true]);
+        }
+    }
+
+    public function testSimpleUndeclaredStrictException()
+    {
+        foreach (['json', 'yaml'] as $format) {
+            $config = self::getConfig(__FUNCTION__, $format);
+            $obj = new ConfigurableMain();
+            $obj->prop1 = 'uninitialized';
+            $this->expectException(HydrationException::class);
+            $this->expectExceptionMessage('Undefined property');
+            $obj->hydrate($config, ['source' => $format, 'strict' => true]);
+        }
+    }
+
+    public function testSimpleValid()
     {
         foreach (['json', 'yaml'] as $format) {
             $config = self::getConfig(__FUNCTION__, $format);
@@ -424,12 +708,12 @@ class HydratorTest extends TestCase
             $this->assertEquals('blue', $obj->prop1);
             $this->assertEquals([], $obj->getErrors());
         }
-	}
+    }
 
     /**
      * Pass an empty options array to make sure strict defaults
      */
-	public function testSimpleValidStrictDefault()
+    public function testSimpleValidStrictDefault()
     {
         foreach (['json', 'yaml'] as $format) {
             $config = self::getConfig(__FUNCTION__, $format);
@@ -439,251 +723,9 @@ class HydratorTest extends TestCase
             $this->expectExceptionMessage('Undefined property');
             $obj->hydrate($config, ['source' => $format]);
         }
-	}
+    }
 
-	public function testSimpleInvalid()
-    {
-        foreach (['json', 'yaml'] as $format) {
-            $config = self::getConfig(__FUNCTION__, $format);
-            $obj = new ConfigurableMain();
-            $obj->prop1 = 'uninitialized';
-            $this->assertFalse($obj->hydrate($config, ['source' => $format]));
-            $this->assertEquals('uninitialized', $obj->prop1);
-            $this->assertStringContainsStringIgnoringCase(
-                'invalid value',
-                $obj->getErrors()[0]
-            );
-        }
-	}
-
-    /**
-     * Make sure a basic empty array returns an empty array
-     */
-	public function testSimpleEmptyArray()
-    {
-        foreach (['json', 'yaml'] as $format) {
-            $config = self::getConfig(__FUNCTION__, $format);
-            $obj = new ConfigurableMain();
-            $obj->prop2 = 'uninitialized';
-            $this->assertTrue($obj->hydrate($config, ['source' => $format]));
-            $this->assertEquals([], $obj->prop2);
-            $this->assertEquals([], $obj->getErrors());
-        }
-	}
-
-	public function testSimpleUndeclaredRelaxed()
-    {
-        foreach (['json', 'yaml'] as $format) {
-            $config = self::getConfig(__FUNCTION__, $format);
-            $obj = new ConfigurableMain();
-            $obj->prop1 = 'uninitialized';
-            $this->assertTrue(
-                $obj->hydrate($config, ['source' => $format, 'strict' => false])
-            );
-            $this->assertEquals('uninitialized', $obj->prop1);
-            $this->assertEquals([], $obj->getErrors());
-        }
-	}
-
-    /**
-     * The presence of an undeclared property causes configure() to fail in strict mode.
-     */
-	public function testSimpleUndeclaredStrict()
-    {
-        foreach (['json', 'yaml'] as $format) {
-            $config = self::getConfig(__FUNCTION__, $format);
-            $obj = new ConfigurableMain();
-            $obj->prop1 = 'uninitialized';
-            $this->expectException(HydrationException::class);
-            $this->expectExceptionMessage('Undefined property');
-            $obj->hydrate($config, ['source' => $format, 'strict' => true]);
-        }
-	}
-
-    /**
-     * The presence of a declared but ignored property succeeds but does not change
-     * the value in relaxed mode.
-     */
-	public function testSimpleIgnoreRelaxed()
-    {
-        foreach (['json', 'yaml'] as $format) {
-            $config = self::getConfig(__FUNCTION__, $format);
-            $obj = new ConfigurableMain();
-            $obj->ignored = 'uninitialized';
-            $this->assertTrue($obj->hydrate($config, ['source' => $format]));
-            $this->assertEquals('uninitialized', $obj->ignored);
-            $this->assertEquals([], $obj->getErrors());
-        }
-	}
-
-    /**
-     * The presence of a declared but ignored property succeeds but does not change
-     * the value in strict mode.
-     */
-	public function testSimpleIgnoreStrict()
-    {
-        foreach (['json', 'yaml'] as $format) {
-            $config = self::getConfig(__FUNCTION__, $format);
-            $obj = new ConfigurableMain();
-            $obj->ignored = 'uninitialized';
-            $this->assertTrue(
-                $obj->hydrate($config, ['source' => $format, 'strict' => true])
-            );
-            $this->assertEquals('uninitialized', $obj->ignored);
-            $this->assertEquals([], $obj->getErrors());
-        }
-	}
-
-	public function testSimpleUndeclaredStrictException()
-    {
-        foreach (['json', 'yaml'] as $format) {
-            $config = self::getConfig(__FUNCTION__, $format);
-            $obj = new ConfigurableMain();
-            $obj->prop1 = 'uninitialized';
-            $this->expectException(HydrationException::class);
-            $this->expectExceptionMessage('Undefined property');
-            $obj->hydrate($config, ['source' => $format, 'strict' => true]);
-        }
-	}
-
-	public function testPropertyMapping()
-    {
-        $config = self::getConfig(__FUNCTION__, 'json');
-        $obj = new ConfigurableMain();
-        $obj->mappedClass = 'uninitialized';
-        $result = $obj->hydrate($config);
-        if (!$result) {
-            print_r($obj->getErrors());
-        }
-        $this->assertTrue($result);
-        $this->assertEquals('purple', $obj->mappedClass);
-        $this->assertEquals([], $obj->getErrors());
-	}
-
-	public function testPropertyMappingArray()
-    {
-        $config = self::getConfig(__FUNCTION__, 'json');
-        $obj = new ConfigurableMain();
-        $result = $obj->hydrate($config);
-        if (!$result) {
-            print_r($obj->getErrors());
-        }
-        $this->assertTrue($result);
-        $this->assertEquals(['array1' => 'one', 'array5' => 'five'], $obj->propArray);
-        $this->assertEquals([], $obj->getErrors());
-	}
-
-    /**
-     * An attempt to set a blocked property generates an error in relaxed mode.
-     */
-	public function testPropertyAllow()
-    {
-        $config = '{"notConfigurable":"purple"}';
-        $obj = new ConfigurableSub();
-        $obj->notConfigurable = 'uninitialized';
-        $result = $obj->hydrate($config, ['strict' => false]);
-        $this->assertFalse($result);
-        $this->assertEquals('uninitialized', $obj->notConfigurable);
-        $this->assertStringContainsStringIgnoringCase(
-            'prohibited', $obj->getErrors()[0]
-        );
-	}
-
-    /**
-     * A strict attempt to set a blocked property causes an exception.
-     */
-	public function testPropertyAllowStrict()
-    {
-        $config = '{"notConfigurable":"purple"}';
-        $obj = new ConfigurableSub();
-        $obj->notConfigurable = 'uninitialized';
-        $this->expectException(HydrationException::class);
-        $this->expectExceptionMessage('prohibited');
-        $obj->hydrate($config, ['strict' => true]);
-	}
-
-    /**
-     * ensure that blocked properties can't be set.
-     */
-	public function testPropertyBlock()
-    {
-        $config = '{"doNotConfigure":"purple"}';
-        $obj = new ConfigurableMain();
-        $obj->doNotConfigure = 'uninitialized';
-        $this->expectException(HydrationException::class);
-        $this->expectExceptionMessage('prohibited');
-        $obj->hydrate($config, ['strict' => true]);
-	}
-
-    /**
-     * Test initializing a pre-existing subclass.
-     */
-	public function testSubclassScalar()
-    {
-        foreach (['json', 'yaml'] as $format) {
-            $config = self::getConfig(__FUNCTION__, $format);
-            $obj = new ConfigurableMain();
-            $obj->subClass = new ConfigurableSub();
-            $obj->subClass->subProp1 = 'uninitialized';
-            $this->assertTrue($obj->hydrate($config, ['source' => $format]));
-            $this->assertInstanceOf(ConfigurableSub::class, $obj->subClass);
-            $this->assertEquals('subprop', $obj->subClass->subProp1);
-            $this->assertEquals([], $obj->getErrors());
-            // See if our custom option got passed in
-            $this->assertEquals(
-                'appOptions',
-                $obj->subClass->checkOption('_custom')
-            );
-        }
-	}
-
-    /**
-     * Test initializing an internally instantiated subclass.
-     */
-	public function testSubclassScalarNew()
-    {
-        foreach (['json', 'yaml'] as $format) {
-            $config = self::getConfig('testSubclassScalar', $format);
-            $obj = new ConfigurableMain();
-            $obj->prop1 = 'uninitialized';
-            $result = $obj->hydrate($config, ['source' => $format]);
-            $this->assertTrue(
-                $result,
-                $format . "\n" . implode("\n", $obj->getErrors())
-            );
-            $this->assertInstanceOf(ConfigurableSub::class, $obj->subClass);
-            $this->assertEquals('subprop', $obj->subClass->subProp1);
-            $this->assertEquals([], $obj->getErrors());
-        }
-	}
-
-	public function testSubclassScalarNewInvalid()
-    {
-        $config = '{"subClass":{"badprop":"subprop"}}';
-        $obj = new ConfigurableMain();
-        $obj->prop1 = 'uninitialized';
-        $this->expectException(HydrationException::class);
-        $this->expectExceptionMessage('Undefined property');
-        $obj->hydrate($config, ['strict' => true]);
-	}
-
-    /**
-     * Test initializing an internally instantiated subclass with a string class specification.
-     */
-	public function testSubclassStringNew()
-    {
-        foreach (['json', 'yaml'] as $format) {
-            $config = self::getConfig(__FUNCTION__, $format);
-            $obj = new ConfigurableMain();
-            $obj->prop1 = 'uninitialized';
-            $this->assertTrue($obj->hydrate($config, ['source' => $format]));
-            $this->assertInstanceOf(ConfigurableSub::class, $obj->subClass2);
-            $this->assertEquals('subprop', $obj->subClass2->subProp1);
-            $this->assertEquals([], $obj->getErrors());
-        }
-	}
-
-	public function testSubclassArrayNew()
+    public function testSubclassArrayNew()
     {
         // {"subClassArray":[{"subProp1":"e0"},{"subProp1":"e1"}]}
         foreach (['json', 'yaml'] as $format) {
@@ -698,12 +740,12 @@ class HydratorTest extends TestCase
             $this->assertEquals('e1', $obj->subClassArray[1]->subProp1, $format);
             $this->assertEquals([], $obj->getErrors(), $format);
         }
-	}
+    }
 
     /**
      * Test populating an associative array when the key property is public.
      */
-	public function testSubclassArrayNewAssoc()
+    public function testSubclassArrayNewAssoc()
     {
         foreach (['json', 'yaml'] as $format) {
             $config = self::getConfig(__FUNCTION__, $format);
@@ -718,12 +760,12 @@ class HydratorTest extends TestCase
             $this->assertEquals('e1', $obj->subAssoc['item1']->subProp1);
             $this->assertEquals([], $obj->getErrors());
         }
-	}
+    }
 
     /**
      * Check that we cast to an array when a key is specified
      */
-	public function testSubclassArrayNewAssocCast()
+    public function testSubclassArrayNewAssocCast()
     {
         foreach (['json', 'yaml'] as $format) {
             $config = self::getConfig(__FUNCTION__, $format);
@@ -737,7 +779,7 @@ class HydratorTest extends TestCase
             $this->assertEquals('e0', $obj->subAssoc['item0']->subProp1);
             $this->assertEquals([], $obj->getErrors());
         }
-	}
+    }
 
     /**
      * Test duplicate keys allowed
@@ -787,7 +829,7 @@ class HydratorTest extends TestCase
      * Test populating an associative array when the key property must be accessed
      * via a getter.
      */
-	public function testSubclassArrayNewAssocP()
+    public function testSubclassArrayNewAssocP()
     {
         foreach (['json', 'yaml'] as $format) {
             $config = self::getConfig(__FUNCTION__, $format);
@@ -802,12 +844,12 @@ class HydratorTest extends TestCase
             $this->assertEquals('e1', $obj->subAssocP['item1']->subProp1);
             $this->assertEquals([], $obj->getErrors());
         }
-	}
+    }
 
     /**
      * Check that we handle an empty subclass array
      */
-	public function testSubclassArrayNewEmpty()
+    public function testSubclassArrayNewEmpty()
     {
         foreach (['json', 'yaml'] as $format) {
             $config = self::getConfig(__FUNCTION__, $format);
@@ -817,9 +859,9 @@ class HydratorTest extends TestCase
             $this->assertEquals(0, count($obj->subClass));
             $this->assertEquals([], $obj->getErrors());
         }
-	}
+    }
 
-	public function testSubclassArrayNewInvalid()
+    public function testSubclassArrayNewInvalid()
     {
         $config = '{"subClass":[{"subProp1":"e0"},{"badprop":"e1"}]}';
         $obj = new ConfigurableMain();
@@ -827,18 +869,18 @@ class HydratorTest extends TestCase
         $this->expectException(HydrationException::class);
         $this->expectExceptionMessage('Undefined property');
         $obj->hydrate($config, ['strict' => true]);
-	}
+    }
 
     /**
      * Test transforming data in initialization. Only works with source=object.
      */
-	public function testSubclassArrayNewTransform()
+    public function testSubclassArrayNewTransform()
     {
         $config = self::getConfig(__FUNCTION__, 'json');
         $config = json_decode($config);
         $obj = new ConfigurableMain();
         $obj->prop1 = 'uninitialized';
-        $this->assertTrue($obj->hydrate($config, ['source'=>'object']));
+        $this->assertTrue($obj->hydrate($config, ['source' => 'object']));
         $this->assertIsArray($obj->subClass);
         $this->assertCount(3, $obj->subClass);
         $this->assertInstanceOf(ConfigurableSub::class, $obj->subClass[0]);
@@ -846,21 +888,9 @@ class HydratorTest extends TestCase
         $this->assertEquals('e1', $obj->subClass[1]->subProp1);
         $this->assertEquals('e2', $obj->subClass[2]->subProp1);
         $this->assertEquals([], $obj->getErrors());
-	}
+    }
 
-    /**
-     * Case where a requested class does not exist
-     */
-	public function testSubclassBad1()
-    {
-        $config = '{"badClass1":{"subProp1":"e0"}}';
-        $obj = new ConfigurableMain();
-        $this->expectException(HydrationException::class);
-        $this->expectExceptionMessage('Unable to load');
-        $result = $obj->hydrate($config);
-	}
-
-	public function testSubclassCallableNew()
+    public function testSubclassCallableNew()
     {
         $config = '{"subCallable":
             [{"subProp1":"e0"},{"subProp1":"e1"}]
@@ -873,12 +903,12 @@ class HydratorTest extends TestCase
         $this->assertEquals('e0', $obj->subCallable[0]->subProp1);
         $this->assertEquals('e1', $obj->subCallable[1]->subProp1);
         $this->assertEquals([], $obj->getErrors());
-	}
+    }
 
     /**
      * Test use of a closure to trigger data-dependent instantiation
      */
-	public function testSubclassDynamic()
+    public function testSubclassDynamic()
     {
         foreach (['json', 'yaml'] as $format) {
             $config = self::getConfig(__FUNCTION__, $format);
@@ -898,24 +928,86 @@ class HydratorTest extends TestCase
             $this->assertEquals('e1', $obj->subDynamic['item1']->propB);
             $this->assertEquals([], $obj->getErrors());
         }
-	}
+    }
 
     /**
-     * Ensure that nested calls to configure do not modify the source data.
+     * Test initializing a pre-existing subclass.
      */
-    public function testNestedDoesNotCorruptSource()
+    public function testSubclassScalar()
     {
-        $json = '{
-            "genericForSubConfiguration":{
-                "subClass":[{"subProp1":"e0"},{"subProp1":"e1"}]
-            }
-        }';
+        foreach (['json', 'yaml'] as $format) {
+            $config = self::getConfig(__FUNCTION__, $format);
+            $obj = new ConfigurableMain();
+            $obj->subClass = new ConfigurableSub();
+            $obj->subClass->subProp1 = 'uninitialized';
+            $this->assertTrue($obj->hydrate($config, ['source' => $format]));
+            $this->assertInstanceOf(ConfigurableSub::class, $obj->subClass);
+            $this->assertEquals('subprop', $obj->subClass->subProp1);
+            $this->assertEquals([], $obj->getErrors());
+            // See if our custom option got passed in
+            $this->assertEquals(
+                'appOptions',
+                $obj->subClass->checkOption('_custom')
+            );
+        }
+    }
 
-        $source = json_decode($json);
-        $config = json_decode($json);
+    /**
+     * Test initializing an internally instantiated subclass.
+     */
+    public function testSubclassScalarNew()
+    {
+        foreach (['json', 'yaml'] as $format) {
+            $config = self::getConfig('testSubclassScalar', $format);
+            $obj = new ConfigurableMain();
+            $obj->prop1 = 'uninitialized';
+            $result = $obj->hydrate($config, ['source' => $format]);
+            $this->assertTrue(
+                $result,
+                $format . "\n" . implode("\n", $obj->getErrors())
+            );
+            $this->assertInstanceOf(ConfigurableSub::class, $obj->subClass);
+            $this->assertEquals('subprop', $obj->subClass->subProp1);
+            $this->assertEquals([], $obj->getErrors());
+        }
+    }
+
+    public function testSubclassScalarNewInvalid()
+    {
+        $config = '{"subClass":{"badprop":"subprop"}}';
         $obj = new ConfigurableMain();
-        $this->assertTrue($obj->hydrate($config, ['source' => 'object']));
-        $this->assertEquals($source, $config);
+        $obj->prop1 = 'uninitialized';
+        $this->expectException(HydrationException::class);
+        $this->expectExceptionMessage('Undefined property');
+        $obj->hydrate($config, ['strict' => true]);
+    }
+
+    /**
+     * Test initializing an internally instantiated subclass with a string class specification.
+     */
+    public function testSubclassStringNew()
+    {
+        foreach (['json', 'yaml'] as $format) {
+            $config = self::getConfig(__FUNCTION__, $format);
+            $obj = new ConfigurableMain();
+            $obj->prop1 = 'uninitialized';
+            $this->assertTrue($obj->hydrate($config, ['source' => $format]));
+            $this->assertInstanceOf(ConfigurableSub::class, $obj->subClass2);
+            $this->assertEquals('subprop', $obj->subClass2->subProp1);
+            $this->assertEquals([], $obj->getErrors());
+        }
+    }
+
+    /**
+     * Case where a requested class does not exist
+     */
+    public function testSubclass_Bad()
+    {
+        $config = '{"badClass1":{"subProp1":"e0"}}';
+        $obj = new ConfigurableMain();
+        $this->expectException(HydrationException::class);
+        $this->expectExceptionMessage('Unable to load');
+        $result = $obj->hydrate($config);
     }
 
 }

@@ -3,9 +3,16 @@
 [![coverage report](https://gitlab.com/abivia/hydration/badges/main/coverage.svg)](https://gitlab.com/abivia/hydration/-/commits/main) 
 [![pipeline status](https://gitlab.com/abivia/hydration/badges/main/pipeline.svg)](https://gitlab.com/abivia/hydration/-/commits/main)
 
-Hydration populates complex data structures from user editable JSON or YAML
-sources. If your application
+Hydration is designed to make JSON and YAML configuration files more user intuitive
+while providing robust validation and smart creation of data structures.
 
+Hydration
+- Populates complex data structures from user editable JSON or YAML sources.
+- Creates simple generic class structures suitable for JSON/YAML encoding, automatically
+removing unwanted properties, rearranging properties into a user-friendly order, and
+simplifying redundant constructs to simplify the generated files. 
+
+If your application
 - has configurations with several levels of nesting,
 - needs to validate user editable data in configuration files,
 - is spending a lot of effort converting the stdClass objects created by `json_decode()` or `yaml_parse()` to 
@@ -333,6 +340,16 @@ Accepts any combination of ReflectionProperty::IS_PRIVATE, ReflectionProperty::I
 and ReflectionProperty::IS_PUBLIC. 
 
 ---
+### Hydrator::encode($source, $rules = [])
+
+`object $source` The object to be encoded
+`EncoderRule|array|null $rules` Rules to be applied to the object.
+
+Uses the properties defined in the Hydrator to encode the data in `$source`
+into a `stdClass` object. If any rules are provided, they are applied
+to the `stdClass` object.
+
+---
 ### Hydrator::getErrors(): array
 Returns an array of errors generated during the last call to `hydrate()`
 the resulting array is empty if no errors were generated.
@@ -579,3 +596,59 @@ Returns the name of this property in the hydrated object.
 `array $options` Options (passed to any objects hydrated by this property).
 
 Assigns `$value` to the property in `$target`. Used by `Hydrator`.
+
+---
+### Property::encodeWith($rules): self
+
+`string|EncoderRule|EncoderRule[] $rules`
+
+Define rules for encoding the property (see `EncoderRule`).
+Multiple rules can be defined by delimiting them with a vertical bar.
+
+For example, to not output a property that is blank or null:
+
+`$property->encodeWith('drop:blank|drop:null`);`
+
+---
+## Encoder
+
+The `Encoder` applies a set of rules contained in a list of properties
+to prepare an object fo encoding in JSON, YAML, etc.
+
+The nominal use case is to let a `Hydrator` manage encoding however it is
+possible to use it directly.
+
+---
+## EncoderRule
+
+Contains a single encoding command and any related arguments.
+
+---
+### EncoderRule::arg($slot): mixed
+
+`int $slot` Argument number, starting from zero.
+
+Retrieves the requested argument or returns null if the argument is not defined.
+
+---
+### EncoderRule::command(): string
+
+Retrieves the rule's command.
+
+---
+### EncoderRule::define($command[, ...$args]): self
+
+`string $command` Either a simple command or a command:argument.
+`mixed ...$args` Command arguments
+
+Defines a command with arguments. A compound command has the form "command:arg0:arg1..."
+
+---
+### EncoderRule::emit($value): bool
+
+Determines whether this value should be part of the output.
+
+---
+### EncoderRule::make($command[, ...$args]): self
+
+Fluent constructor. See `define`.

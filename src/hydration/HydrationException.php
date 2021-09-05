@@ -2,7 +2,9 @@
 
 namespace Abivia\Hydration;
 
-class HydrationException extends \Exception
+use Exception;
+
+class HydrationException extends Exception
 {
 
 }

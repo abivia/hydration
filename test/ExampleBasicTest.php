@@ -1,9 +1,10 @@
 <?php
+/** @noinspection PhpUnhandledExceptionInspection */
 
 namespace Abivia\Hydration\Test;
 
 use PHPUnit\Framework\TestCase;
-use \Abivia\Hydration\Hydrator;
+use Abivia\Hydration\Hydrator;
 
 class BasicObject {
 

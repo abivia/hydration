@@ -5,7 +5,9 @@ namespace Abivia\Hydration\Test\Objects;
 
 class DefaultConfig
 {
+    public array $a1 = [];
     public string $key;
+    public ?object $o1 = null;
     public string $p1;
     protected string $p2;
     private string $p3;
