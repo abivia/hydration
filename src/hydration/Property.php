@@ -498,14 +498,14 @@ class Property
      */
     public function encodeWith($rules): self
     {
+        $this->encodeRules = [];
         if ($rules instanceof EncoderRule) {
             $this->encodeRules[] = $rules;
         } else {
             if (is_string($rules)) {
-                $rules = explode(';', $rules);
+                $rules = explode('|', $rules);
             }
 
-            $this->encodeRules = [];
             foreach ($rules as $rule) {
                 if ($rule instanceof EncoderRule) {
                     $this->encodeRules[] = $rule;
@@ -563,6 +563,11 @@ class Property
         return $this->binding;
     }
 
+    /**
+     * Get the current encoding rules.
+     *
+     * @return EncoderRule[]
+     */
     public function getEncode(): array
     {
         return $this->encodeRules;

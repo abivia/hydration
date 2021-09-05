@@ -7,8 +7,10 @@ require_once 'objects/ConstructOneArg.php';
 require_once 'objects/DefaultConfig.php';
 require_once 'objects/PropertyJig.php';
 
+use Abivia\Hydration\EncoderRule;
 use Abivia\Hydration\HydrationException;
 use Abivia\Hydration\Property;
+use Abivia\Hydration\Test\Objects\AltMethod;
 use Abivia\Hydration\Test\Objects\ConstructOneArg;
 use Abivia\Hydration\Test\Objects\DefaultConfig;
 use Abivia\Hydration\Test\Objects\PropertyJig;
@@ -358,7 +360,7 @@ class PropertyTest extends TestCase
     {
         $obj = Property::make('source');
         $this->assertEquals('hydrate', $obj->getHydrateMethod());
-        $obj->bind(Abivia\Hydration\Test\Objects\AltMethod::class, 'populate');
+        $obj->bind(AltMethod::class, 'populate');
         $this->assertEquals('populate', $obj->getHydrateMethod());
     }
 
@@ -394,6 +396,20 @@ class PropertyTest extends TestCase
         $this->expectExceptionMessage($msg);
         $this->assertFalse($obj->assign($target, 'nada'));
 
+    }
+
+    public function testEncodeWith()
+    {
+        $rule = new EncoderRule();
+        $obj = Property::make('foo');
+        $obj->encodeWith($rule);
+        $rules = $obj->getEncode();
+        $this->assertTrue($rule === $rules[0]);
+        $obj->encodeWith('drop:null|order:30');
+        $rules = $obj->getEncode();
+        $this->assertCount(2, $rules);
+        $this->assertEquals('drop', $rules[0]->command());
+        $this->assertEquals('order', $rules[1]->command());
     }
 
     public function testHasReflection()

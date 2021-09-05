@@ -1,5 +1,8 @@
 # Change log for Abivia\Hydration
 
+## 1.1.1
+- Fix bug and wrong delimiter in Property::encodeWith().
+
 ## 1.1.0
 - Added encoding capabilities to facilitate converting structures back to user-friendly
 configuration files.
