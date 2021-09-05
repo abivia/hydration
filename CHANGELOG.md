@@ -1,5 +1,9 @@
 # Change log for Abivia\Hydration
 
+## 1.1.0
+- Added encoding capabilities to facilitate converting structures back to user-friendly
+configuration files.
+
 ## 1.0.5
 - Added `options` argument to Hydrator::addProperties() to bulk configure the properties, e.g.
 with a common validation method or ignore status.
