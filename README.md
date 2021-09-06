@@ -494,7 +494,7 @@ Defaults to 'hydrate'.
 hydrating this property.
 
 This enables the creation of different objects based on the content of the data. The 
-Closure takes the property value and current options array as arguments.
+Closure takes the property value and current Property as arguments.
 
 **Example:** Return a class based on the `type` property in the property value.
 ```php
@@ -520,17 +520,27 @@ This method is useful for populating PHP Classes, for example `DateInterval`.
 
 `string $method` The name of a method in the target class.
 
-Invoke this method to set the value of the property.
+Invoke this method to set the value of the property. The
+method(mixed $value, Property $property):bool takes the proposed property value and Property as
+arguments, returns true on success.
 
 **Example:** See `test\ExampleSetterTest.php`
 
 ---
+### Property::getter($method): self
+
+`string $method` The name of a method in the target class.
+
+Invoke this method to set the value of the property. The
+method(Property $property):bool takes the Property as an argument, returns the value of the
+property.
+
+---
 ### Property::validate($fn): self
 
-`Closure $fn` Validation function ($value, $options):bool to return true on success. 
+`Closure $fn` Validation function ($value, $property):bool to return true on success. 
 
-Function to validate the contents of a property before setting it. `$options['Property']` contains
-a reference to the Property object.
+Function to validate the contents of a property before setting it.
 
 ---
 ### Property::toArray($castToArray): self
@@ -547,7 +557,8 @@ If `$key` is `true`, then the array is created with integer keys starting at zer
 
 If `$key` is s `string` then it specifies property in the value to be used as the index.
 
-If `$key` is a `Closure` then it is expected to return the array key as a string.
+If `$key` is a `Closure` then it receives the object being hydrated, the value, and the Property
+as arguments and is expected to return the array key as a string.
 
 If `$key` is `false`, `null`, or absent, then the property is not treated as an array. 
 
@@ -579,6 +590,11 @@ Gets the name of the method used to hydrate an object created for this property.
 Gets the current ignore state.
 
 ---
+### Property::getOptions(): array
+
+Gets the current hydration options.
+
+---
 ### Property::source(): string
 
 Returns the name of this property in the source data.
@@ -586,7 +602,8 @@ Returns the name of this property in the source data.
 ---
 ### Property::target(): string
 
-Returns the name of this property in the hydrated object.
+Returns the name of this property in the hydrated object. If the property is accessed through a
+getter or setter method, the name is prefixed with an asterisk.
 
 ---
 ### Property::assign($target, $value[, $options]): bool

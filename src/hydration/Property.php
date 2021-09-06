@@ -82,6 +82,11 @@ class Property
     protected array $errors = [];
 
     /**
+     * @var string Name of a method to be used to get a property.
+     */
+    protected string $getMethod = '';
+
+    /**
      * @var string The method to call when hydrating enclosed objects.
      */
     protected string $hydrateMethod = 'hydrate';
@@ -110,6 +115,7 @@ class Property
      * @var string Name of a method to be used to set a property.
      */
     protected string $setMethod = '';
+
     /**
      * @var string Name of this property in the source data.
      */
@@ -201,7 +207,6 @@ class Property
         if ($this->ignored) {
             return true;
         }
-        $this->options['Property'] = $this;
         if ($this->mode === self::MODE_SIMPLE) {
             if ($this->castArray && is_object($value)) {
                 $value = (array) $value;
@@ -210,7 +215,7 @@ class Property
                 if (!is_array($value)) {
                     $value = [$value];
                 }
-                $this->assignArray($target, $value);
+                $this->assignArrayElement($target, $value);
             } else {
                 $this->assignProperty($target, $value);
             }
@@ -221,13 +226,59 @@ class Property
         return count($this->errors) === 0;
     }
 
+    protected function assignArray(object $target, $value): ?array
+    {
+        // Reflection's setValue() doesn't let us change array contents.
+        // Build the whole array, then assign it.
+        $tempArray = [];
+        foreach ($value as $element) {
+            if (!$this->checkValidity($element)) {
+                return null;
+            }
+            if ($this->isAssociative($element)) {
+                $element = (object)$element;
+            }
+            $obj = $this->makeTarget($element);
+
+            // stdClass objects are already cloned. Nothing else to do here.
+            if(get_class($obj) !== 'stdClass') {
+                $this->checkHydrateMethod($obj);
+                $obj->{$this->hydrateMethod}($element, $this->options);
+            }
+
+            // If the application is handling the assignment, pass it off
+            if ($this->setMethod !== '') {
+                if (!$target->{$this->setMethod}($obj, $this)) {
+                    $this->errors[] = "Failed to set $this->targetProperty"
+                        . " via $this->setMethod()." ;
+                }
+                continue;
+            }
+
+            // Store the new object into the array.
+            $key = $this->getArrayIndex($obj, $element);
+            if ($key !== null && !$this->duplicateKeys && isset($tempArray[$key])) {
+                $this->errors[] = "Duplicate key \"$key\" configuring"
+                    . " \$$this->sourceProperty in " . get_class($obj);
+            } else {
+                if ($key === null) {
+                    $tempArray[] = $obj;
+                } else {
+                    $tempArray[$key] = $obj;
+                }
+            }
+        }
+
+        return $tempArray;
+    }
+
     /**
      * Create a new array and assign values.
      *
      * @param object $target The object being hydrated.
      * @param mixed $value Value of the property.
      */
-    protected function assignArray(object $target, $value)
+    protected function assignArrayElement(object $target, $value)
     {
         // Reflection's setValue() doesn't let us change array contents.
         // Build the whole array, then assign it.
@@ -268,45 +319,9 @@ class Property
         }
         try {
             if (is_array($value) && $this->mode !== self::MODE_CONSTRUCT) {
-                // Reflection's setValue() doesn't let us change array contents.
-                // Build the whole array, then assign it.
-                $tempArray = [];
-                foreach ($value as $element) {
-                    if (!$this->checkValidity($element)) {
-                        return;
-                    }
-                    if ($this->isAssociative($element)) {
-                        $element = (object)$element;
-                    }
-                    $obj = $this->makeTarget($element, $this->options);
-
-                    // stdClass objects are already cloned. Nothing else to do here.
-                    if(get_class($obj) !== 'stdClass') {
-                        $this->checkHydrateMethod($obj);
-                        $obj->{$this->hydrateMethod}($element, $this->options);
-                    }
-
-                    // If the application is handling the assignment, pass it off
-                    if ($this->setMethod !== '') {
-                        if (!$target->{$this->setMethod}($obj, $this->options)) {
-                            $this->errors[] = "Failed to set $this->targetProperty"
-                                . " via $this->setMethod()." ;
-                        }
-                        continue;
-                    }
-
-                    // Store the new object into the array.
-                    $key = $this->getArrayIndex($obj, $element);
-                    if ($key !== null && !$this->duplicateKeys && isset($tempArray[$key])) {
-                        $this->errors[] = "Duplicate key \"$key\" configuring"
-                            . " \$$this->sourceProperty in " . get_class($obj);
-                    } else {
-                        if ($key === null) {
-                            $tempArray[] = $obj;
-                        } else {
-                            $tempArray[$key] = $obj;
-                        }
-                    }
+                $tempArray = $this->assignArray($target, $value);
+                if ($tempArray === null) {
+                    return;
                 }
 
                 // If the application wasn't doing assignment, assign the property.
@@ -317,7 +332,7 @@ class Property
                 if (!$this->checkValidity($value)) {
                     return;
                 }
-                $obj = $this->makeTarget($value, $this->options);
+                $obj = $this->makeTarget($value);
 
                 // In construct mode, $value was used to hydrate $obj via constructor.
                 if ($this->mode !== self::MODE_CONSTRUCT) {
@@ -353,7 +368,7 @@ class Property
         }
         try {
             if ($this->setMethod !== '') {
-                if (!$target->{$this->setMethod}($value, $this->options)) {
+                if (!$target->{$this->setMethod}($value, $this)) {
                     $this->errors[] = "Failed to set $this->targetProperty via $this->setMethod()." ;
                 }
             } elseif ($useArray && $this->arrayMode) {
@@ -456,7 +471,7 @@ class Property
     protected function checkValidity(&$value): bool
     {
         if ($this->validateClosure) {
-            if (!($this->validateClosure)($value, $this->options)) {
+            if (!($this->validateClosure)($value, $this)) {
                 $this->errors[] = "Invalid value for $this->sourceProperty";
                 return false;
             }
@@ -536,7 +551,7 @@ class Property
             return $value->{$this->arrayKey};
         }
         if ($this->arrayKeyClosure !== null) {
-            return ($this->arrayKeyClosure)($target, $value, $this->options);
+            return ($this->arrayKeyClosure)($target, $value, $this);
         }
 
         return $default;
@@ -603,6 +618,14 @@ class Property
     }
 
     /**
+     * @return array
+     */
+    public function getOptions(): array
+    {
+        return $this->options;
+    }
+
+    /**
      * Check to see if this property is bound to a reflection property.
      *
      * @return ReflectionProperty|null
@@ -612,8 +635,32 @@ class Property
         return $this->reflection ?? null;
     }
 
-    public function getValue($source)
+    /**
+     * Specify a method in the target class used to set the value of this property.
+     *
+     * @param string $method A function (Property $property):mixed that returns the value of the
+     * property.
+     *
+     * @return $this
+     */
+    public function getter(string $method): self
     {
+        $this->getMethod = $method;
+
+        return $this;
+    }
+
+    /**
+     * Get the value of this property from a source object.
+     *
+     * @param object $source
+     * @return mixed
+     */
+    public function getValue(object $source)
+    {
+        if ($this->getMethod !== '') {
+            return $source->{$this->getMethod}($this);
+        }
         if ($this->reflection->isPublic()) {
             return $source->{$this->targetProperty};
         }
@@ -743,15 +790,14 @@ class Property
      * Create an object suitable for hydration.
      *
      * @param string|object $value
-     * @param array $options
      * @return object
      * @throws AssignmentException
      * @throws HydrationException
      */
-    protected function makeTarget($value, array $options): object
+    protected function makeTarget($value): object
     {
         $ourClass = $this->classClosure === null ? $this->binding
-            : ($this->classClosure)($value, $options);
+            : ($this->classClosure)($value, $this);
         if (!is_string($ourClass)) {
             throw new AssignmentException("Non-string returned by with() Closure.");
         }
@@ -797,6 +843,11 @@ class Property
      */
     public function reflects($reflectProperty): self
     {
+        if ($this->setMethod !== '') {
+            Throw new HydrationException(
+                "Can't assign reflection to a property that uses a getter or setter."
+            );
+        }
         if ($reflectProperty instanceof ReflectionProperty) {
             $this->reflection = $reflectProperty;
         } else {
@@ -849,7 +900,8 @@ class Property
     /**
      * Specify a method in the target class used to set the value of this property.
      *
-     * @param string $method The method takes the proposed property value and options as arguments.
+     * @param string $method The method(mixed $value, Property $property):bool takes the proposed
+     * property value and Property as arguments, returns true on success.
      *
      * @return $this
      */
@@ -871,13 +923,15 @@ class Property
     }
 
     /**
-     * Get the name of the property in the hydrated object.
+     * Get the name of the property in the hydrated object. If the property is "synthetic",
+     * i.e. accessed via get/set methods, then the target name is prefixed with an asterisk.
      *
      * @return string
      */
     public function target(): string
     {
-        return $this->targetProperty;
+        $prefix = $this->getMethod !== '' || $this->setMethod !== '' ? '*' : '';
+        return $prefix . $this->targetProperty;
     }
 
     /**
@@ -922,8 +976,8 @@ class Property
     /**
      * Callback that uses the property value to return a suitable object for hydration.
      *
-     * @param Closure $callback A function ($value, $options) that takes the property value as an
-     * argument and returns the appropriate class name.
+     * @param Closure $callback A function (mixed $value, ?array $options):string that takes the
+     * property value and Property as arguments and returns the appropriate class name.
      *
      * @return $this
      */

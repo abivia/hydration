@@ -12,6 +12,7 @@ use Abivia\Hydration\Property;
 use Abivia\Hydration\Test\objects\DefaultConfig;
 use Exception;
 use PHPUnit\Framework\TestCase;
+use ReflectionProperty;
 use stdClass;
 use Symfony\Component\Yaml\Yaml;
 
@@ -33,6 +34,8 @@ class ConfigurableMain
      */
     public $genericForSubConfiguration;
 
+    public int $hydrateFilter = 0;
+
     private static Hydrator $hydrator;
 
     public $ignored;
@@ -49,13 +52,15 @@ class ConfigurableMain
     public $subClassArray;
     public $subDynamic;
 
-    public function addToCallable($obj, $options): bool
+    /**
+     * @param mixed $value
+     * @param Property $property
+     * @return bool
+     */
+    public function addToCallable($value, Property $property): bool
     {
-        // Ensure we receive the Property object
-        if (!isset($options['Property']) || !$options['Property'] instanceof Property) {
-            return false;
-        }
-        $this->subCallable[] = $obj;
+        $options = $property->getOptions();
+        $this->subCallable[] = $value;
 
         return true;
     }
@@ -63,16 +68,17 @@ class ConfigurableMain
     public function getErrors(): array
     {
         if (!isset(self::$hydrator)) {
-            self::hydrateInit();
+            self::hydrateInit($this->hydrateFilter);
         }
         return self::$hydrator->getErrors();
     }
 
     public function hydrate($config, $options = []): bool
     {
-        if (!isset(self::$hydrator)) {
-            self::hydrateInit();
-        }
+        // Re-initialize on every call because filters might change.
+        self::hydrateInit($this->hydrateFilter);
+
+        // Pre-hydration expansion of condensed properties.
         if (is_object($config) && isset($config->subClass) && is_array($config->subClass)) {
             foreach ($config->subClass as $key => $value) {
                 if (!is_string($value)) {
@@ -90,6 +96,8 @@ class ConfigurableMain
                 $config['subClass'][$key] = ['subProp1' => $value];
             }
         }
+
+        // Test that custom options are passed through
         $options['_custom'] = 'appOptions';
         $result = self::$hydrator->hydrate($this, $config, $options);
         if ($result && $this->genericForSubConfiguration !== null) {
@@ -99,9 +107,6 @@ class ConfigurableMain
                     $obj = new ConfigurableSub();
                     $result = $obj->hydrate($config, self::$hydrator->getOptions());
                     if (!$result) {
-                        //                  $this->configureErrors = array_merge(
-                        //                      $this->configureErrors, $obj->configureGetErrors()
-                        //                  );
                         return false;
                     }
                     $this->genericForSubConfiguration->subClass[$key] = $obj;
@@ -118,7 +123,7 @@ class ConfigurableMain
      * @throws \Abivia\Hydration\HydrationException
      * @throws \ReflectionException
      */
-    private static function hydrateInit()
+    private static function hydrateInit($filter)
     {
         self::$hydrator = Hydrator::make()
             ->addProperty(Property::make('badClass1', 'ThisClassDoesNotExist'))
@@ -175,7 +180,7 @@ class ConfigurableMain
                 ->key()
                 ->bind(ConfigurableSub::class)
             )
-            ->bind(self::class);
+            ->bind(self::class, $filter);
     }
 
 }
@@ -516,6 +521,7 @@ class HydratorTest extends TestCase
         $source = json_decode($json);
         $config = json_decode($json);
         $obj = new ConfigurableMain();
+        $obj->hydrateFilter = ReflectionProperty::IS_PUBLIC;
         $this->assertTrue($obj->hydrate($config, ['source' => 'object']));
         $this->assertEquals($source, $config);
     }
@@ -597,6 +603,7 @@ class HydratorTest extends TestCase
         foreach (['json', 'yaml'] as $format) {
             $config = self::getConfig(__FUNCTION__, $format);
             $obj = new ConfigurableMain();
+            $obj->hydrateFilter = ReflectionProperty::IS_PUBLIC;
             $obj->prop2 = 'uninitialized';
             $this->assertTrue($obj->hydrate($config, ['source' => $format]));
             $this->assertEquals([], $obj->prop2);

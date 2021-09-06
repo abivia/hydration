@@ -1,5 +1,12 @@
 # Change log for Abivia\Hydration
 
+## 2.0.0
+- Modify arguments passed to setter closure to pass the Property instead of just the property
+options.
+- Add Property::getter() to allow complex retrieval.
+- Add Property::getOptions() to retrieve current options.
+- Adjust update tests and add new test for "synthetic" properties.
+
 ## 1.1.1
 - Fix bug and wrong delimiter in Property::encodeWith().
 

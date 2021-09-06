@@ -228,9 +228,15 @@ class Hydrator
          * @var Property $property
          */
         foreach ($properties as $property) {
-            if (!isset($reflectionProperties[$property->target()])) {
+            $target = $property->target();
+
+            // if the target is defined by a setter/getter, skip it.
+            if ($target[0] === '*') {
+                continue;
+            }
+            if (!isset($reflectionProperties[$target])) {
                 throw new HydrationException(
-                    "Property " . $property->target() . " is not defined in $toClass."
+                    "Property $target is not defined in $toClass."
                 );
             }
             $property->reflects($reflectionProperties[$property->target()]);
