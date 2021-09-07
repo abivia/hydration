@@ -1,5 +1,8 @@
 # Change log for Abivia\Hydration
 
+## 2.0.1
+- Bugfix: Bad args to Encoder::encodeProperty() on internal call.
+
 ## 2.0.0
 - Modify arguments passed to setter closure to pass the Property instead of just the property
 options.

@@ -13,6 +13,16 @@ class Encoder
     protected array $properties = [];
 
     /**
+     * @var Property|null The property being encoded
+     */
+    private ?Property $property;
+
+    /**
+     * @var EncoderRule[] Rules for the current property.
+     */
+    private array $rules;
+
+    /**
      * Construct the encoder, optionally initialize with properties.
      *
      * @param Property[] $properties
@@ -71,6 +81,51 @@ class Encoder
     }
 
     /**
+     * @param mixed $value
+     * @param object|null $source
+     * @return mixed
+     */
+    protected function applyRules($value, ?object $source = null)
+    {
+        $asScalar = false;
+        $asArray = false;
+        foreach ($this->rules as $rule) {
+            $command = $rule->command();
+            switch ($command) {
+                case  'array':
+                    $asArray = true;
+                    break;
+                case 'scalar':
+                    $asScalar = true;
+                    break;
+                case 'transform':
+                    $function = $rule->arg(0);
+                    if ($source !== null && is_string($function)) {
+                        $source->$function($value, $this->property);
+                    } else {
+                        $function($value, $source, $this->property);
+                    }
+                    break;
+            }
+        }
+        if ($asArray) {
+            if (is_scalar($value)) {
+                $value = [$value];
+            } else {
+                if (is_object($value)) {
+                    $value = (array) $value;
+                }
+                $value = array_values($value ?? []);
+            }
+        }
+        if ($asScalar && is_array($value) && count($value) === 1) {
+            $value = $value[0];
+        }
+
+        return $value;
+    }
+
+    /**
      * Bind an object instance or class name.
      *
      * @param string|object $subject Name or instance of the class to bind the hydrator to.
@@ -103,55 +158,15 @@ class Encoder
      * Apply encoding rules to a standalone value or object property.
      *
      * @param mixed $value
-     * @param array $rules
+     * @param EncoderRule[] $rules
      * @param object|null $source
      * @return bool
      */
     public function encodeProperty(&$value, array $rules, ?object $source = null): bool
     {
-        if ($source !== null) {
-            /** @var EncoderRule $rule */
-            foreach ($rules as $rule) {
-                if (!$rule->emit($value)) {
-                    return false;
-                }
-            }
-        }
-        $asScalar = false;
-        $asArray = false;
-        /** @var EncoderRule $rule */
-        foreach ($rules as $rule) {
-            $command = $rule->command();
-            switch ($command) {
-                case  'array':
-                    $asArray = true;
-                    break;
-                case 'scalar':
-                    $asScalar = true;
-                    break;
-                case 'transform':
-                    $function = $rule->arg(0);
-                    if ($source !== null && is_string($function)) {
-                        $source->$function($value);
-                    } else {
-                        $function($value, $source);
-                    }
-                    break;
-            }
-        }
-        if ($asArray) {
-            if (is_scalar($value)) {
-                $value = [$value];
-            } else {
-                if (is_object($value)) {
-                    $value = (array) $value;
-                }
-                $value = array_values($value ?? []);
-            }
-        }
-        if ($asScalar && is_array($value) && count($value) === 1) {
-            $value = $value[0];
-        }
+        $this->property = null;
+        $this->rules = $rules;
+        $value = $this->applyRules($value, $source);
 
         return true;
     }
@@ -186,13 +201,17 @@ class Encoder
             if ($property->getBlocked() || $property->getIgnored()) {
                 continue;
             }
+            $this->property = $property;
             $toProp = $property->source();
             $value = $property->getValue($source);
-            $rules = $property->getEncode();
-            if (count($rules)) {
-                if ($this->encodeProperty($value, $rules, $source)) {
-                    $result->$toProp = $value;
+            $this->rules = $property->getEncode();
+            if (count($this->rules)) {
+                foreach ($this->rules as $rule) {
+                    if (!$rule->emit($value)) {
+                        continue 2;
+                    }
                 }
+                $result->$toProp = $this->applyRules($value, $source);
             } else {
                 $result->$toProp = $value;
             }
