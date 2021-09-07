@@ -1,5 +1,8 @@
 # Change log for Abivia\Hydration
 
+## 2.0.2
+- Bugfix: preprocessing drop commands was an over-optimization. 
+
 ## 2.0.1
 - Bugfix: Bad args to Encoder::encodeProperty() on internal call.
 

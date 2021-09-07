@@ -244,6 +244,29 @@ class EncoderTest extends TestCase
         $this->assertEquals($expect, $result);
     }
 
+    public function testJsonTransformThenDrop()
+    {
+        $rule = EncoderRule::make(
+            'transform',
+            function (&$value) {
+                $value = false;
+            }
+        );
+        $coder = new Encoder();
+        $coder->addProperty(Property::make('key')
+            ->encodeWith([$rule, 'drop:false']));
+        $coder->addProperty(Property::make('p1'));
+
+        $coder->bind(DefaultConfig::class);
+        $source = new DefaultConfig();
+        $source->key = 'someKey';
+        $source->p1 = 'this is p1';
+        $result = $coder->encode($source);
+        $expect = new stdClass();
+        $expect->p1 = 'this is p1';
+        $this->assertEquals($expect, $result);
+    }
+
     public function test__construct()
     {
         $props = [
@@ -254,6 +277,7 @@ class EncoderTest extends TestCase
         $this->assertEquals($props, $coder->getProperties());
     }
 
+    /** @noinspection PhpParamsInspection */
     public function test__construct_bad()
     {
         $this->expectException(HydrationException::class);

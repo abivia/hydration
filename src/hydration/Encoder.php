@@ -83,9 +83,9 @@ class Encoder
     /**
      * @param mixed $value
      * @param object|null $source
-     * @return mixed
+     * @return bool
      */
-    protected function applyRules($value, ?object $source = null)
+    protected function applyRules(&$value, ?object $source = null): bool
     {
         $asScalar = false;
         $asArray = false;
@@ -94,6 +94,11 @@ class Encoder
             switch ($command) {
                 case  'array':
                     $asArray = true;
+                    break;
+                case 'drop':
+                    if (!$rule->emit($value)) {
+                        return false;
+                    }
                     break;
                 case 'scalar':
                     $asScalar = true;
@@ -122,7 +127,7 @@ class Encoder
             $value = $value[0];
         }
 
-        return $value;
+        return true;
     }
 
     /**
@@ -166,9 +171,8 @@ class Encoder
     {
         $this->property = null;
         $this->rules = $rules;
-        $value = $this->applyRules($value, $source);
 
-        return true;
+        return $this->applyRules($value, $source);
     }
 
     /**
@@ -206,12 +210,9 @@ class Encoder
             $value = $property->getValue($source);
             $this->rules = $property->getEncode();
             if (count($this->rules)) {
-                foreach ($this->rules as $rule) {
-                    if (!$rule->emit($value)) {
-                        continue 2;
-                    }
+                if ($this->applyRules($value, $source)) {
+                    $result->$toProp = $value;
                 }
-                $result->$toProp = $this->applyRules($value, $source);
             } else {
                 $result->$toProp = $value;
             }
