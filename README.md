@@ -149,7 +149,7 @@ Loading can be either fault-tolerant or strict. Strict validation can either fai
 
 ## Installation
 
-```composer require abivia/hydration```
+`composer require abivia/hydration`
 
 Hydration uses the Symphony parser for YAML.
 
