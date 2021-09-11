@@ -505,6 +505,13 @@ Property::make('myProperty')
 ```
 
 ---
+### Property::set($options): self
+
+`array $options` Settings array indexed by method.
+
+Configure the property via a list of attributes.
+
+---
 ### Property::construct($className[, $unpack]): self
 
 `string $className` Name of the class to be created.
