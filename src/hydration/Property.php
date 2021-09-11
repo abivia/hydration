@@ -11,6 +11,7 @@ use ReflectionClass;
 use ReflectionException;
 use ReflectionMethod;
 use ReflectionProperty;
+use stdClass;
 use function count;
 
 /**
@@ -42,7 +43,7 @@ class Property
     protected bool $arrayMode = false;
 
     /**
-     * @var string|null The name of a class to instantiate and store the property value into.
+     * @var class-string|null The name of a class to instantiate and store the property value into.
      */
     protected ?string $binding = null;
 
@@ -104,12 +105,12 @@ class Property
     /**
      * @var array Options for the current assignment.
      */
-    private array $options;
+    private array $options = [];
 
     /**
-     * @var ReflectionProperty Reflection information on the property we're bound to.
+     * @var ReflectionProperty|null Reflection information on the property we're bound to.
      */
-    protected ReflectionProperty $reflection;
+    protected ?ReflectionProperty $reflection = null;
 
     /**
      * @var string Name of a method to be used to set a property.
@@ -140,7 +141,7 @@ class Property
      * Class constructor, source property required {@see make()}.
      *
      * @param string $property The name of this property in the source data.
-     * @param string|null $binding Optional name of a class to store the property value into.
+     * @param class-string|null $binding Optional name of a class to store the property value into.
      */
     public function __construct(string $property, string $binding = null)
     {
@@ -226,7 +227,15 @@ class Property
         return count($this->errors) === 0;
     }
 
-    protected function assignArray(object $target, $value): ?array
+    /**
+     * Create an array of objects from an array of generic values.
+     * @param object $target
+     * @param array $value
+     * @return array|null
+     * @throws AssignmentException
+     * @throws HydrationException
+     */
+    protected function assignArray(object $target, array $value): ?array
     {
         // Reflection's setValue() doesn't let us change array contents.
         // Build the whole array, then assign it.
@@ -241,7 +250,7 @@ class Property
             $obj = $this->makeTarget($element);
 
             // stdClass objects are already cloned. Nothing else to do here.
-            if(get_class($obj) !== 'stdClass') {
+            if(get_class($obj) !== stdClass::class) {
                 $this->checkHydrateMethod($obj);
                 $obj->{$this->hydrateMethod}($element, $this->options);
             }
@@ -278,7 +287,7 @@ class Property
      * @param object $target The object being hydrated.
      * @param mixed $value Value of the property.
      */
-    protected function assignArrayElement(object $target, $value)
+    protected function assignArrayElement(object $target, $value): void
     {
         // Reflection's setValue() doesn't let us change array contents.
         // Build the whole array, then assign it.
@@ -291,8 +300,10 @@ class Property
             if (!$this->duplicateKeys && isset($tempArray[$key])) {
                 $this->errors[] = "Duplicate key \"$key\" configuring \$$this->targetProperty in "
                     . get_class($target);
-            } else {
+            } elseif ($key !== null) {
                 $tempArray[$key] = $element;
+            } else {
+                $tempArray[] = $element;
             }
         }
         $this->assignProperty($target, $tempArray, false);
@@ -306,7 +317,7 @@ class Property
      *
      * @throws HydrationException
      */
-    protected function assignInstance(object $target, $value)
+    protected function assignInstance(object $target, $value): void
     {
         // If the value appears to be an associative array, convert to object.
         if ($this->isAssociative($value)) {
@@ -357,46 +368,53 @@ class Property
      * @param mixed $value The value to be assigned to the property/index.
      * @param bool $useArray If false, $value is a vetted array. We just store it.
      */
-    protected function assignProperty(object $target, $value, bool $useArray = true)
+    protected function assignProperty(object $target, $value, bool $useArray = true): void
     {
         if ($useArray && !$this->checkValidity($value)) {
             return;
         }
-        if (is_object($value) && get_class($value) === 'stdClass') {
+        if (is_object($value) && get_class($value) === stdClass::class) {
             // Clone the stdClass, so we can't corrupt the source data
             $value = clone $value;
         }
         try {
             if ($this->setMethod !== '') {
                 if (!$target->{$this->setMethod}($value, $this)) {
-                    $this->errors[] = "Failed to set $this->targetProperty via $this->setMethod()." ;
-                }
-            } elseif ($useArray && $this->arrayMode) {
-                $key = $this->getArrayIndex($target, $value);
-                // Assigning an array element
-                if ($this->reflection->isPublic()) {
-                    if ($key !== null) {
-                        $target->{$this->targetProperty}[$key] = $value;
-                    } else {
-                        $target->{$this->targetProperty}[] = $value;
-                    }
-                } else {
-                    // For non-public properties we need the whole array.
-                    $this->reflection->setAccessible(true);
-                    $tempArray = $this->reflection->getValue($target);
-                    if ($key !== null) {
-                        $tempArray[$key] = $value;
-                    } else {
-                        $tempArray[] = $value;
-                    }
-                    $this->reflection->setValue($target, $tempArray);
+                    $this->errors[] = "Failed to set $this->targetProperty via $this->setMethod().";
                 }
             } else {
-                if ($this->reflection->isPublic()) {
-                    $target->{$this->targetProperty} = $value;
+                if ($this->reflection === null) {
+                    $this->errors[] = "Unable to set $this->targetProperty:"
+                        . " not bound to a property.";
+                    return;
+                }
+                if ($useArray && $this->arrayMode) {
+                    $key = $this->getArrayIndex($target, $value);
+                    // Assigning an array element
+                    if ($this->reflection->isPublic()) {
+                        if ($key !== null) {
+                            $target->{$this->targetProperty}[$key] = $value;
+                        } else {
+                            $target->{$this->targetProperty}[] = $value;
+                        }
+                    } else {
+                        // For non-public properties we need the whole array.
+                        $this->reflection->setAccessible(true);
+                        $tempArray = $this->reflection->getValue($target);
+                        if ($key !== null) {
+                            $tempArray[$key] = $value;
+                        } else {
+                            $tempArray[] = $value;
+                        }
+                        $this->reflection->setValue($target, $tempArray);
+                    }
                 } else {
-                    $this->reflection->setAccessible(true);
-                    $this->reflection->setValue($target, $value);
+                    if ($this->reflection->isPublic()) {
+                        $target->{$this->targetProperty} = $value;
+                    } else {
+                        $this->reflection->setAccessible(true);
+                        $this->reflection->setValue($target, $value);
+                    }
                 }
             }
         } catch (Error $err) {
@@ -407,7 +425,7 @@ class Property
     /**
      * Set the class to store this property into, optionally the method for doing so.
      *
-     * @param string|object|null $binding A class name or an object of the class to be bound.
+     * @param class-string|object|null $binding A class name or an object of the class to be bound.
      * If null, then the property is just a simple assignment.
      * @param string $method The name of the method to call when hydrating this property.
      *
@@ -450,7 +468,7 @@ class Property
      * @param object $target
      * @throws HydrationException
      */
-    protected function checkHydrateMethod(object $target)
+    protected function checkHydrateMethod(object $target): void
     {
         if (!method_exists($target, $this->hydrateMethod)) {
             throw new HydrationException(
@@ -483,7 +501,7 @@ class Property
     /**
      * Set a class to be created via constructor.
      *
-     * @param string $className Name of the class to be created.
+     * @param class-string $className Name of the class to be created.
      * @param bool $unpack If the data to be passed is an array, unpack it to individual arguments.
      *
      * @return $this
@@ -632,7 +650,7 @@ class Property
      */
     public function getReflection(): ?ReflectionProperty
     {
-        return $this->reflection ?? null;
+        return $this->reflection;
     }
 
     /**
@@ -655,11 +673,18 @@ class Property
      *
      * @param object $source
      * @return mixed
+     *
+     * @throws HydrationException
      */
     public function getValue(object $source)
     {
         if ($this->getMethod !== '') {
             return $source->{$this->getMethod}($this);
+        }
+        if ($this->reflection === null) {
+            throw new HydrationException(
+                "Unable to get $this->targetProperty: not bound to a property."
+            );
         }
         if ($this->reflection->isPublic()) {
             return $source->{$this->targetProperty};
@@ -695,7 +720,7 @@ class Property
     /**
      * Determine if the value is an associative array (if it has non-integer keys).
      *
-     * @param $value
+     * @param mixed $value
      *
      * @return bool
      */
@@ -748,7 +773,7 @@ class Property
      * Fluent constructor.
      *
      * @param string $property Name of the property.
-     * @param string|null $binding  Name of the class to create when hydrating the property.
+     * @param class-string|null $binding  Name of the class to create when hydrating the property.
      *
      * @return Property
      */
@@ -804,11 +829,17 @@ class Property
         if (!class_exists($ourClass)) {
             throw new AssignmentException("Unable to load class $ourClass");
         }
-        if ($ourClass === 'stdClass' && is_object($value)) {
+        if ($ourClass === stdClass::class && is_object($value)) {
             $obj = clone $value;
         } else {
             try {
                 if ($this->mode === self::MODE_CONSTRUCT) {
+                    if ($this->binding === null) {
+                        throw new HydrationException(
+                            "Unable to create instance for \$$this->sourceProperty "
+                            . " no class binding has been set."
+                        );
+                    }
                     if ($this->unpackArguments) {
                         if (is_scalar($value)) {
                             $value = [$value];
@@ -834,8 +865,8 @@ class Property
     /**
      * Set the property's reflection info.
      *
-     * @param ReflectionProperty|string|object $reflectProperty The target class, an object of that class, or
-     * a ReflectionProperty.
+     * @param ReflectionProperty|class-string|object $reflectProperty The target class,
+     * an object of that class, or a ReflectionProperty.
      *
      * @return $this
      *
@@ -867,12 +898,13 @@ class Property
      * Configure the property via a list of attributes.
      *
      * @param array $options
+     * @return $this
      */
-    public function set(array $options)
+    public function set(array $options): self
     {
         // Save a little time if there's nothing to do.
         if (count($options) === 0) {
-            return;
+            return $this;
         }
 
         // Get the public methods, filtering out methods that make no sense.
@@ -895,6 +927,7 @@ class Property
                 }
             }
         }
+        return $this;
     }
 
     /**

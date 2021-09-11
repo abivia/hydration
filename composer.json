@@ -13,7 +13,8 @@
     },
     "require-dev": {
         "phpunit/phpunit": "^9.0-stable",
-        "symfony/yaml": "^5.1@dev"
+        "symfony/yaml": "^5.1@dev",
+        "vimeo/psalm": "^4.10.0"
     },
     "license": "MIT",
     "authors": [
@@ -21,6 +22,9 @@
             "name": "Alan Langford"
         }
     ],
+    "scripts": {
+        "psalm": "vendor/bin/psalm --config=psalm.xml"
+    },
     "support": {
         "issues": "https://gitlab.com/abivia/hydration/issues"
     },

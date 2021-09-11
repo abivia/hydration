@@ -35,11 +35,24 @@ class EncoderRule
         'transform' => ['min' => 1, 'argHelp' => 'methodName|Closure'],
     ];
 
+    /**
+     * Get the value of the argument in the specified slot, or null if the slot is not defined.
+     *
+     * @param int $slot
+     *
+     * @return mixed|null
+     */
     public function arg(int $slot)
     {
         return $this->args[$slot] ?? null;
     }
 
+    /**
+     * See if the supplied value should be omitted from the result.
+     *
+     * @param mixed $value
+     * @return bool
+     */
     private function checkDrop($value): bool
     {
         $drop = false;
@@ -131,7 +144,7 @@ class EncoderRule
      *
      * @throws HydrationException
      */
-    protected function defineDrop()
+    protected function defineDrop(): void
     {
         /** @var array $validArg0 */
         static $validArg0 = ['blank', 'empty', 'false', 'null', 'true', 'zero'];

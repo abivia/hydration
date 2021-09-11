@@ -15,12 +15,12 @@ class Encoder
     /**
      * @var Property|null The property being encoded
      */
-    private ?Property $property;
+    private ?Property $property = null;
 
     /**
      * @var EncoderRule[] Rules for the current property.
      */
-    private array $rules;
+    private array $rules = [];
 
     /**
      * Construct the encoder, optionally initialize with properties.
@@ -31,6 +31,9 @@ class Encoder
     public function __construct(array $properties = [])
     {
         foreach ($properties as $key => $property) {
+            /**
+             * @psalm-suppress DocblockTypeContradiction
+             */
             if (!$property instanceof Property) {
                 throw new HydrationException(
                     "Array element $key is not a " . Property::class . '.'
@@ -133,7 +136,7 @@ class Encoder
     /**
      * Bind an object instance or class name.
      *
-     * @param string|object $subject Name or instance of the class to bind the hydrator to.
+     * @param class-string|object $subject Name or instance of the class to bind the hydrator to.
      * @return $this
      * @throws HydrationException
      * @throws ReflectionException
@@ -224,7 +227,8 @@ class Encoder
     /**
      * Sort the encoder rules by weight and name.
      */
-    protected function sort() {
+    protected function sort(): void
+    {
         // Build a list of [weight, property]
         $minWeight = 10;
         $sorter = [];
@@ -240,7 +244,7 @@ class Encoder
             $sorter[] = [$weight, $property->source(), $property];
         }
         // Sort by weight, name
-        usort($sorter, function ($lvalue, $rvalue) {
+        usort($sorter, function (array $lvalue, array $rvalue) {
             if ($lvalue[0] === $rvalue[0]) {
                 return strcmp($lvalue[1], $rvalue[1]);
             }
