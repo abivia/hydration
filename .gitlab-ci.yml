@@ -23,6 +23,7 @@ test:php7.4:
   - docker-php-ext-enable xdebug
   - echo "xdebug.mode=coverage" >> /usr/local/etc/php/conf.d/xdebug.ini
   - cp composer-php74-ci.json composer.json
+  - rm -f composer.lock
   - curl -sS https://getcomposer.org/installer | php
   - php composer.phar install
   script:
