@@ -3,6 +3,7 @@
 namespace Abivia\Hydration;
 
 use ReflectionException;
+use ReflectionMethod;
 use stdClass;
 
 class Encoder
@@ -87,6 +88,8 @@ class Encoder
      * @param mixed $value
      * @param object|null $source
      * @return bool
+     * @throws HydrationException
+     * @throws ReflectionException
      */
     protected function applyRules(&$value, ?object $source = null): bool
     {
@@ -107,12 +110,7 @@ class Encoder
                     $asScalar = true;
                     break;
                 case 'transform':
-                    $function = $rule->arg(0);
-                    if ($source !== null && is_string($function)) {
-                        $source->$function($value, $this->property);
-                    } else {
-                        $function($value, $source, $this->property);
-                    }
+                    $this->applyTransform($rule, $source, $value);
                     break;
             }
         }
@@ -134,6 +132,32 @@ class Encoder
     }
 
     /**
+     * @param EncoderRule $rule
+     * @param object|null $source
+     * @param mixed $value
+     * @throws HydrationException
+     * @throws ReflectionException
+     */
+    protected function applyTransform(EncoderRule $rule, ?object $source, &$value): void
+    {
+        $function = $rule->arg(0);
+        if ($source !== null && is_string($function)) {
+            $subjectClass = get_class($source);
+            /**
+             * @var ReflectionMethod|null $reflectMethod
+             */
+            $reflectMethod = Hydrator::fetchReflection($subjectClass)['methods'][$function] ?? null;
+            if ($reflectMethod === null) {
+                throw new HydrationException("Method $subjectClass::$function not found.");
+            }
+            $reflectMethod->setAccessible(true);
+            $value = $reflectMethod->invoke($source, $value, $this->property);
+        } elseif (is_callable($function)) {
+            $value = $function($value, $source, $this->property);
+        }
+    }
+
+    /**
      * Bind an object instance or class name.
      *
      * @param class-string|object $subject Name or instance of the class to bind the hydrator to.
@@ -151,12 +175,12 @@ class Encoder
         $reflectProperties = Hydrator::fetchReflection($subjectClass);
 
         foreach ($this->properties as $propName => $property) {
-            if (!isset($reflectProperties[$propName])) {
+            if (!isset($reflectProperties['properties'][$propName])) {
                 throw new HydrationException(
-                    "Property $propName not found in $subjectClass."
+                    "Property $subjectClass::$propName not found."
                 );
             }
-            $property->reflects($reflectProperties[$propName]);
+            $property->reflects($reflectProperties['properties'][$propName]);
         }
 
         return $this;
@@ -169,6 +193,8 @@ class Encoder
      * @param EncoderRule[] $rules
      * @param object|null $source
      * @return bool
+     * @throws HydrationException
+     * @throws ReflectionException
      */
     public function encodeProperty(&$value, array $rules, ?object $source = null): bool
     {

@@ -1,5 +1,10 @@
 # Change log for Abivia\Hydration
 
+## 2.1.0
+- Encoder transform functions accessed via reflection, may now be private/protected.
+- Encoder transform functions changed to return transformed value.
+- Improvements suggested by vimeo/psalm static analysis.
+
 ## 2.0.2
 - Bugfix: preprocessing drop commands was an over-optimization. 
 

@@ -1,4 +1,5 @@
 <?php
+/** @noinspection ALL */
 
 namespace Abivia\Hydration\Test\Objects;
 
@@ -30,6 +31,10 @@ class DefaultConfig
         $obj->key = $key;
         $obj->p1 = $p1;
         return $obj;
+    }
+
+    private function rev($value) {
+        return strrev($value);
     }
 
 }

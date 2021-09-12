@@ -1,4 +1,5 @@
 <?php
+/** @noinspection ALL */
 
 namespace Abivia\Hydration\Test\Objects;
 
@@ -69,6 +70,15 @@ class PropertyJig
     public function getPrivateString(): string
     {
         return $this->privateString;
+    }
+
+    public function setArray($value): bool
+    {
+        if (in_array('bad', $value)) {
+            return false;
+        }
+        $this->arrayOfTestData = $value;
+        return true;
     }
 
     public function setIgnorable($value): bool

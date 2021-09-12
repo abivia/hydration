@@ -1,4 +1,5 @@
 <?php
+/** @noinspection ALL */
 
 namespace Abivia\Hydration\Test;
 
@@ -499,7 +500,7 @@ class HydratorTest extends TestCase
         $source->p1 = 'this is p1';
         $topRule = new EncoderRule();
         $topRule->define('transform', function (&$value) {
-            $value = $value->key . '<==>' . $value->p1;
+            return $value->key . '<==>' . $value->p1;
         });
         $result = $hydrator->encode($source, $topRule);
         $expect = new stdClass();

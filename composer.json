@@ -29,9 +29,7 @@
         "issues": "https://gitlab.com/abivia/hydration/issues"
     },
     "autoload": {
-        "classmap": [
-            "src/"
-        ]
+        "psr-4": { "Abivia\\Hydration\\":  "src/hydration"}
     },
     "autoload-dev": {
       "classmap": [

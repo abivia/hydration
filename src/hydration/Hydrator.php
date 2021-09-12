@@ -5,6 +5,7 @@ namespace Abivia\Hydration;
 
 use ReflectionClass;
 use ReflectionException;
+use ReflectionMethod;
 use ReflectionProperty;
 use ReflectionType;
 use Symfony\Component\Yaml\Yaml;
@@ -22,8 +23,13 @@ use function method_exists;
  */
 class Hydrator
 {
-    public const ALL_NONSTATIC_PROPERTIES = ReflectionProperty::IS_PRIVATE | ReflectionProperty::IS_PROTECTED
-    | ReflectionProperty::IS_PUBLIC;
+    public const ALL_CALLABLE_METHODS = ReflectionMethod::IS_PRIVATE
+    | ReflectionMethod::IS_PROTECTED
+    | ReflectionMethod::IS_PUBLIC;
+
+    public const ALL_NONSTATIC_PROPERTIES = ReflectionProperty::IS_PRIVATE
+        | ReflectionProperty::IS_PROTECTED
+        | ReflectionProperty::IS_PUBLIC;
 
     /**
      * @var Encoder|null An Encoder for the subject class.
@@ -151,7 +157,7 @@ class Hydrator
     /**
      * Bind an object instance or class name.
      *
-     * @param string|object $subject Name or instance of the class to bind the hydrator to.
+     * @param class-string|object $subject Name or instance of the class to bind the hydrator to.
      * @param int $filter Filter for adding implicit properties.
      * @return $this
      * @throws ReflectionException
@@ -168,7 +174,10 @@ class Hydrator
         self::fetchReflection($this->subjectClass);
 
         // Get all unfiltered properties for the target object
-        foreach (self::$reflectionCache[$this->subjectClass] as $propName => $reflectProperty) {
+        foreach (
+            self::$reflectionCache[$this->subjectClass]['properties']
+            as $propName => $reflectProperty
+        ) {
             // If the property hasn't been defined and isn't filtered
             // generate a default mapping.
             if (!isset($this->targetProperties[$propName])) {
@@ -181,21 +190,23 @@ class Hydrator
             try {
                 // See if we can establish a binding to classes that implement Hydratable.
                 /**
-                 * @var ReflectionType (ReflectionNamedType in PHP 8.0+)
+                 * @var ReflectionType|null (ReflectionNamedType in PHP 8.0+)
                  */
                 $reflectType = $reflectProperty->getType();
-                if (method_exists($reflectType, 'getName')) {
-                    $forClass = $reflectType->getName();
-                } else {
-                    $forClass = (string) $reflectType;
-                }
-                if ($forClass[0] === '?') {
-                    $forClass = substr($forClass, 1);
-                }
-                // If the class is "array" or the like, this will throw an exception.
-                $reflectClass = new ReflectionClass($forClass);
-                if (in_array(Hydratable::class, $reflectClass->getInterfaceNames())) {
-                    $this->targetProperties[$propName]->bind($forClass);
+                if ($reflectType !== null) {
+                    if (method_exists($reflectType, 'getName')) {
+                        $forClass = $reflectType->getName();
+                    } else {
+                        $forClass = (string) $reflectType;
+                    }
+                    if ($forClass[0] === '?') {
+                        $forClass = substr($forClass, 1);
+                    }
+                    // If the class is "array" or the like, this will throw an exception.
+                    $reflectClass = new ReflectionClass($forClass);
+                    if (in_array(Hydratable::class, $reflectClass->getInterfaceNames())) {
+                        $this->targetProperties[$propName]->bind($forClass);
+                    }
                 }
             } catch (ReflectionException $ex) {
             }
@@ -215,7 +226,7 @@ class Hydrator
      * Ensure that all properties are members of the same class.
      *
      * @param array $properties
-     * @param string $toClass
+     * @param class-string $toClass
      * @throws HydrationException
      * @throws ReflectionException
      */
@@ -232,12 +243,12 @@ class Hydrator
             if ($target[0] === '*') {
                 continue;
             }
-            if (!isset($reflectionProperties[$target])) {
+            if (!isset($reflectionProperties['properties'][$target])) {
                 throw new HydrationException(
-                    "Property $target is not defined in $toClass."
+                    "Property \"$target\" is not defined in $toClass."
                 );
             }
-            $property->reflects($reflectionProperties[$property->target()]);
+            $property->reflects($reflectionProperties['properties'][$property->target()]);
         }
 
     }
@@ -268,14 +279,19 @@ class Hydrator
     public static function fetchReflection(string $subjectClass): array
     {
         if (!isset(self::$reflectionCache[$subjectClass])) {
+            self::$reflectionCache[$subjectClass] = ['methods' => [], 'properties' => []];
             $reflect = new ReflectionClass($subjectClass);
 
+            $reflectMethods = $reflect->getMethods(self::ALL_CALLABLE_METHODS);
+            foreach ($reflectMethods as $rm) {
+                // Index the methods by name
+                self::$reflectionCache[$subjectClass]['methods'][$rm->getName()] = $rm;
+            }
+
             $reflectProperties = $reflect->getProperties(self::ALL_NONSTATIC_PROPERTIES);
-            self::$reflectionCache[$subjectClass] = [];
             foreach ($reflectProperties as $rp) {
                 // Index the properties by name
-                self::$reflectionCache[$subjectClass][$rp->getName()] = $rp;
-
+                self::$reflectionCache[$subjectClass]['properties'][$rp->getName()] = $rp;
             }
         }
         return self::$reflectionCache[$subjectClass];
@@ -485,7 +501,7 @@ class Hydrator
 
     /**
      * Log an error
-     * @param string|array message An error message to log or an array of messages to log
+     * @param string|array $message An error message to log or an array of messages to log
      * @return void
      */
     protected function logError($message)
@@ -500,7 +516,7 @@ class Hydrator
     /**
      * Create a Hydrator instance, optionally binding it to a subject class.
      *
-     * @param object|string|null $subject an instance or class name to bind to.
+     * @param object|class-string|null $subject an instance or class name to bind to.
      * @param int $filter Filter for property scopes to auto-bind.
      *
      * @return Hydrator

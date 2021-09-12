@@ -1,4 +1,5 @@
 <?php
+/** @noinspection ALL */
 
 namespace Abivia\Hydration\Test\Objects;
 

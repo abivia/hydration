@@ -2,7 +2,9 @@
 
 namespace Abivia\Hydration;
 
-class AssignmentException extends \Exception
+use Exception;
+
+class AssignmentException extends Exception
 {
 
 }

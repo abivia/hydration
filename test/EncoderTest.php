@@ -1,4 +1,5 @@
 <?php
+/** @noinspection ALL */
 
 namespace Abivia\Hydration\Test;
 
@@ -53,6 +54,7 @@ class EncoderTest extends TestCase
         $coder = new Encoder();
         $coder->addProperties(['key', 'p1']);
         $this->expectException(HydrationException::class);
+        $this->expectExceptionMessage('Property "key" is not defined');
         $coder->bind(ConstructOneArg::class);
     }
 
@@ -90,24 +92,6 @@ class EncoderTest extends TestCase
         $this->assertEquals($expect, $result);
     }
 
-    public function testJsonArrayFromScalar()
-    {
-        $coder = new Encoder();
-        $coder->addProperty(
-            Property::make('asArray')
-                ->as('key')
-                ->encodeWith('array')
-        );
-
-        $coder->bind(DefaultConfig::class);
-        $source = new DefaultConfig();
-        $source->key = 'prop1';
-        $result = $coder->encode($source);
-        $expect = new stdClass();
-        $expect->asArray = ['prop1'];
-        $this->assertEquals($expect, $result);
-    }
-
     public function testJsonArrayFromObject()
     {
         $property = Property::make('asArray')
@@ -139,18 +123,21 @@ class EncoderTest extends TestCase
         $this->assertEquals($expect, $result);
     }
 
-    public function testJsonNotBound()
+    public function testJsonArrayFromScalar()
     {
         $coder = new Encoder();
-        $coder->addProperties(['key', 'p1']);
+        $coder->addProperty(
+            Property::make('asArray')
+                ->as('key')
+                ->encodeWith('array')
+        );
 
+        $coder->bind(DefaultConfig::class);
         $source = new DefaultConfig();
-        $source->key = 'someKey';
-        $source->p1 = 'this is p1';
+        $source->key = 'prop1';
         $result = $coder->encode($source);
         $expect = new stdClass();
-        $expect->key = 'someKey';
-        $expect->p1 = 'this is p1';
+        $expect->asArray = ['prop1'];
         $this->assertEquals($expect, $result);
     }
 
@@ -182,6 +169,21 @@ class EncoderTest extends TestCase
         $this->assertEquals($expect, $result);
     }
 
+    public function testJsonNotBound()
+    {
+        $coder = new Encoder();
+        $coder->addProperties(['key', 'p1']);
+
+        $source = new DefaultConfig();
+        $source->key = 'someKey';
+        $source->p1 = 'this is p1';
+        $result = $coder->encode($source);
+        $expect = new stdClass();
+        $expect->key = 'someKey';
+        $expect->p1 = 'this is p1';
+        $this->assertEquals($expect, $result);
+    }
+
     public function testJsonOrder()
     {
         $coder = new Encoder();
@@ -198,7 +200,7 @@ class EncoderTest extends TestCase
         $result = json_encode($coder->encode($source));
         $this->assertEquals('{"p1":"this is p1","key":"someKey"}', $result);
 
-        $keyProp->encodeWith('order:5');
+        $keyProp->encodeWith('order:10');
         $result = json_encode($coder->encode($source));
         $this->assertEquals('{"key":"someKey","p1":"this is p1"}', $result);
     }
@@ -221,12 +223,12 @@ class EncoderTest extends TestCase
         $this->assertEquals($expect, $result);
     }
 
-    public function testJsonTransform()
+    public function testJsonTransformClosure()
     {
         $rule = EncoderRule::make(
             'transform',
-            function (&$value) {
-                $value = strtoupper($value);
+            function ($value) {
+                return strtoupper($value);
             }
         );
         $coder = new Encoder();
@@ -244,12 +246,47 @@ class EncoderTest extends TestCase
         $this->assertEquals($expect, $result);
     }
 
+    public function testJsonTransformMethod()
+    {
+        $rule = EncoderRule::make('transform', 'rev');
+        $coder = new Encoder();
+        $coder->addProperty(Property::make('key')->encodeWith($rule));
+        $coder->addProperty(Property::make('p1'));
+
+        $coder->bind(DefaultConfig::class);
+        $source = new DefaultConfig();
+        $source->key = 'someKey';
+        $source->p1 = 'this is p1';
+        $result = $coder->encode($source);
+        $expect = new stdClass();
+        $expect->key = 'yeKemos';
+        $expect->p1 = 'this is p1';
+        $this->assertEquals($expect, $result);
+    }
+
+    public function testJsonTransformMethod_bad()
+    {
+        $rule = EncoderRule::make('transform', 'foobar');
+        $coder = new Encoder();
+        $coder->addProperty(Property::make('key')->encodeWith($rule));
+        $coder->addProperty(Property::make('p1'));
+
+        $coder->bind(DefaultConfig::class);
+        $source = new DefaultConfig();
+        $source->key = 'someKey';
+        $source->p1 = 'this is p1';
+        $this->expectException(HydrationException::class);
+        $this->expectExceptionMessage('foobar not found');
+        $result = $coder->encode($source);
+    }
+
     public function testJsonTransformThenDrop()
     {
         $rule = EncoderRule::make(
             'transform',
-            function (&$value) {
+            function ($value) {
                 $value = false;
+                return $value;
             }
         );
         $coder = new Encoder();

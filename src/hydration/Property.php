@@ -425,8 +425,8 @@ class Property
     /**
      * Set the class to store this property into, optionally the method for doing so.
      *
-     * @param class-string|object|null $binding A class name or an object of the class to be bound.
-     * If null, then the property is just a simple assignment.
+     * @param class-string|object|null $binding A class name or an object of the class
+     * to be bound. If null, then the property is just a simple assignment.
      * @param string $method The name of the method to call when hydrating this property.
      *
      * @return $this

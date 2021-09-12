@@ -1,4 +1,6 @@
 <?php
+/** @noinspection ALL */
+
 namespace Abivia\Hydration\Test;
 
 use Abivia\Hydration\HydrationException;

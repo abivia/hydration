@@ -1,5 +1,5 @@
 <?php
-/** @noinspection PhpUnhandledExceptionInspection */
+/** @noinspection ALL */
 
 namespace Abivia\Hydration\Test;
 

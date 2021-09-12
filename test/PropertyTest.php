@@ -1,4 +1,5 @@
 <?php
+/** @noinspection ALL */
 
 namespace Abivia\Hydration\Test;
 
@@ -58,6 +59,24 @@ class PropertyTest extends TestCase
             ["one" => 1, "two" => 2, "three" => 3],
             $target->arrayOfTestData
         );
+    }
+
+    public function testAssignArrayNullKey()
+    {
+        $target = new PropertyJig();
+        $reflectClass = new ReflectionClass($target);
+        $reflectProp = $reflectClass->getProperty('arrayOfTestData');
+
+        $obj = Property::make('arrayOfTestData')
+            ->reflects($reflectProp)
+            ->key(function () {
+                return null;
+            });
+
+        $data = ['one', 'two', 'three'];
+        $status = $obj->assign($target, $data);
+        $this->assertTrue($status);
+        $this->assertEquals($data, $target->arrayOfTestData);
     }
 
     public function testAssignAssociativeArray()
@@ -227,6 +246,28 @@ class PropertyTest extends TestCase
 
         $status = $obj->assign($target, 'badViaMethod');
         $this->assertFalse($status);
+    }
+
+    public function testAssignMethodArray()
+    {
+        $target = new PropertyJig();
+        $reflectClass = new ReflectionClass($target);
+        $reflectProp = $reflectClass->getProperty('arrayOfTestData');
+
+        $obj = Property::make('arrayOfTestData')
+            ->reflects($reflectProp)
+            ->setter('setArray')
+            ->key();
+
+        $data = ['one', 'two', 'three'];
+        $status = $obj->assign($target, $data);
+        $this->assertTrue($status);
+        $this->assertEquals($data, $target->arrayOfTestData);
+
+        $badData = ['one', 'bad', 'three'];
+        $status = $obj->assign($target, $badData);
+        $this->assertFalse($status);
+        $this->assertEquals($data, $target->arrayOfTestData);
     }
 
     public function testAssignObjectArray()
@@ -410,6 +451,22 @@ class PropertyTest extends TestCase
         $this->assertCount(2, $rules);
         $this->assertEquals('drop', $rules[0]->command());
         $this->assertEquals('order', $rules[1]->command());
+    }
+
+    public function testGetValueProtected()
+    {
+        $target = new PropertyJig();
+        $reflectClass = new ReflectionClass($target);
+        $reflectProp = $reflectClass->getProperty('arrayProtected');
+
+        $obj = Property::make('arrayProtected')
+            ->reflects($reflectProp);
+
+        $data = [1, 2, 3, 'bob' => 4];
+        $status = $obj->assign($target, $data);
+        $this->assertTrue($status);
+        $actual = $obj->getValue($target);
+        $this->assertEquals($data, $actual);
     }
 
     public function testHasReflection()
