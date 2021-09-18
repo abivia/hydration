@@ -113,6 +113,11 @@ class Property
     protected ?ReflectionProperty $reflection = null;
 
     /**
+     * @var bool Set when this property must be provided.
+     */
+    protected bool $required = false;
+
+    /**
      * @var string Name of a method to be used to set a property.
      */
     protected string $setMethod = '';
@@ -654,6 +659,16 @@ class Property
     }
 
     /**
+     * Query if this property is required.
+     *
+     * @return bool
+     */
+    public function getRequired(): bool
+    {
+        return $this->required;
+    }
+
+    /**
      * Specify a method in the target class used to set the value of this property.
      *
      * @param string $method A function (Property $property):mixed that returns the value of the
@@ -890,6 +905,20 @@ class Property
             }
 
         }
+
+        return $this;
+    }
+
+    /**
+     * Set required status on this property. Required properties cause an exception if missing.
+     *
+     * @param bool $required
+     *
+     * @return $this
+     */
+    public function require(bool $required = true): self
+    {
+        $this->required = $required;
 
         return $this;
     }

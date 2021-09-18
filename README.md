@@ -463,11 +463,18 @@ Allow this property to be hydrated. Clears the `block()` setting.
 ---
 ### Property::ignore([$ignore]): self
 
-`string|null $message` A custom message to be returned as the error.
+`bool $ignore` Ignore state
 
 Prevent this property from being hydrated. Attempts to hydrate this property
-will generate a `HydrationException`. If a message is provided it will be in the
-exception, otherwise a default message is generated. Also see `unblock()`.
+will be ignored.
+
+---
+### Property::require([$required]): self
+
+`bool $ignore` Require state
+
+Require this property to be hydrated. If data provided to the hydrator does
+not include this property, a HydrationException will be thrown.
 
 ---
 ### Property::reflects($reflectProperty): self
@@ -595,6 +602,11 @@ Gets the name of the method used to hydrate an object created for this property.
 ### Property::getIgnored(): bool
 
 Gets the current ignore state.
+
+---
+### Property::getRequired(): bool
+
+Gets the current require state.
 
 ---
 ### Property::getOptions(): array

@@ -1,5 +1,9 @@
 # Change log for Abivia\Hydration
 
+## 2.2.0
+- Added required properties.
+- Doc fixes.
+
 ## 2.1.0
 - Encoder transform functions accessed via reflection, may now be private/protected.
 - Encoder transform functions changed to return transformed value.

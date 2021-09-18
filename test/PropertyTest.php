@@ -540,6 +540,18 @@ class PropertyTest extends TestCase
         $obj->assign($target, $config);
     }
 
+    public function testRequire()
+    {
+        $obj = Property::make('requireable');
+        $this->assertFalse($obj->getRequired());
+
+        $obj->require();
+        $this->assertTrue($obj->getRequired());
+
+        $obj->require(false);
+        $this->assertFalse($obj->getRequired());
+    }
+
     public function testSet()
     {
         $obj = Property::make('prop');

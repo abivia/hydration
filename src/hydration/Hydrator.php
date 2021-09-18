@@ -442,6 +442,7 @@ class Hydrator
             }
 
             // Step through each of the properties
+            $allProps = array_fill_keys(array_keys($this->sourceProperties), true);
             foreach ($config as $origProperty => $value) {
 
                 // Ensure that the property exists.
@@ -453,12 +454,26 @@ class Hydrator
                     }
                     continue;
                 }
+                unset($allProps[$origProperty]);
 
                 // Assign the value to the property.
                 $propertyMap = $this->sourceProperties[$origProperty];
                 if (!$this->assign($target, $propertyMap, $value, $subOptions)) {
                     $result = false;
                 }
+            }
+
+            // Check for required properties
+            foreach (array_keys($allProps) as $property) {
+                if (!$this->sourceProperties[$property]->getRequired()) {
+                    unset($allProps[$property]);
+                }
+            }
+            if (count($allProps)) {
+                throw new HydrationException(
+                    "No value provided for "
+                    . implode(', ', array_keys($allProps))
+                );
             }
         } finally {
             array_pop($this->optionStack);

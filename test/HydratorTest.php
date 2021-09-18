@@ -4,6 +4,7 @@
 namespace Abivia\Hydration\Test;
 
 require_once 'objects/DefaultConfig.php';
+require_once 'objects/RequiredConfig.php';
 
 use Abivia\Hydration\EncoderRule;
 use Abivia\Hydration\Hydratable;
@@ -11,6 +12,7 @@ use Abivia\Hydration\HydrationException;
 use Abivia\Hydration\Hydrator;
 use Abivia\Hydration\Property;
 use Abivia\Hydration\Test\objects\DefaultConfig;
+use Abivia\Hydration\Test\Objects\RequiredConfig;
 use Exception;
 use PHPUnit\Framework\TestCase;
 use ReflectionProperty;
@@ -594,6 +596,20 @@ class HydratorTest extends TestCase
         $this->assertTrue($result);
         $this->assertEquals(['array1' => 'one', 'array5' => 'five'], $obj->propArray);
         $this->assertEquals([], $obj->getErrors());
+    }
+
+    /**
+     * ensure that required properties work.
+     */
+    public function testPropertyRequire()
+    {
+        $obj = new RequiredConfig();
+        $config = '{"key":"foo", "p1": "p1"}';
+        $this->assertTrue($obj->hydrate($config));
+        $config = '{"p1": "p1"}';
+        $this->expectException(HydrationException::class);
+        $this->expectExceptionMessage('No value provided');
+        $obj->hydrate($config);
     }
 
     /**
