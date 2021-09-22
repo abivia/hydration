@@ -1,7 +1,10 @@
 # Change log for Abivia\Hydration
 
+##2.2.1
+- Improvements to README
+
 ## 2.2.0
-- Added required properties.
+- Added required properties - hydration will fail if a required property is missing.
 - Doc fixes.
 
 ## 2.1.0

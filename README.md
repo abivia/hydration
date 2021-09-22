@@ -6,11 +6,35 @@
 Hydration is designed to make JSON and YAML configuration files more user intuitive
 while providing robust validation and smart creation of data structures.
 
+Hydration can simplify configuration files to improve usability. Instead of 
+```json
+{
+  "providers": [
+    {
+      "name": "myFirstProvider"
+    },
+    {
+      "name": "mySecondProvider"
+    }
+  ]
+}
+```
+Users can simplify the syntax to
+```json
+{
+  "providers": ["myFirstProvider", "mySecondProvider"]
+}
+```
+
 Hydration
 - Populates complex data structures from user editable JSON or YAML sources.
-- Creates simple generic class structures suitable for JSON/YAML encoding, automatically
-removing unwanted properties, rearranging properties into a user-friendly order, and
-simplifying redundant constructs to simplify the generated files. 
+- Allows your application to validate inputs, including ensuring that required properties
+are present.
+
+Encoding (dehydration?) facilities can transform your application data structures into objects for
+encoding as JSON/YAML, automatically removing unwanted properties, rearranging properties into a
+user-friendly order, removing properties with default values and simplifying redundant constructs
+to improve usability. 
 
 If your application
 - has configurations with several levels of nesting,
@@ -23,7 +47,6 @@ then Hydration is here to help.
 
 Hydration makes it easy to convert of a set of untyped data structures
 returned by decoding JSON or YAML configuration files, into PHP classes.
-Hydration can:
 
 - create associative arrays of named classes indexed by a property of the
 class,
