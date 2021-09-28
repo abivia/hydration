@@ -1,6 +1,10 @@
 # Change log for Abivia\Hydration
 
-##2.2.1
+## 2.2.2
+- Moved applyTransform logic from Encoder to EncoderRule.
+- Documentation updates.
+
+## 2.2.1
 - Improvements to README
 
 ## 2.2.0

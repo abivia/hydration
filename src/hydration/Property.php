@@ -20,7 +20,7 @@ use function count;
 class Property
 {
     /**
-     * Constants governing how a value is assigned.
+     * MODE_* constants govern how a value is assigned.
      */
     protected const MODE_CLASS = 1;
     protected const MODE_CONSTRUCT = 2;
@@ -143,7 +143,7 @@ class Property
     protected ?Closure $validateClosure = null;
 
     /**
-     * Class constructor, source property required {@see make()}.
+     * Class constructor, source property required {@see Property::make()}.
      *
      * @param string $property The name of this property in the source data.
      * @param class-string|null $binding Optional name of a class to store the property value into.
@@ -234,9 +234,12 @@ class Property
 
     /**
      * Create an array of objects from an array of generic values.
-     * @param object $target
-     * @param array $value
-     * @return array|null
+     *
+     * @param object $target The object being hydrated.
+     * @param array $value The source values.
+     *
+     * @return array|null Null if an element fails validity checks.
+     *
      * @throws AssignmentException
      * @throws HydrationException
      */
@@ -471,6 +474,7 @@ class Property
      * Make sure the specified hydration method exists.
      *
      * @param object $target
+     *
      * @throws HydrationException
      */
     protected function checkHydrateMethod(object $target): void
@@ -489,6 +493,7 @@ class Property
      * @param mixed $value The data to be validated.
      *
      * @return bool
+     *
      * @noinspection PhpParameterByRefIsNotUsedAsReferenceInspection
      */
     protected function checkValidity(&$value): bool
@@ -530,8 +535,12 @@ class Property
     /**
      * Set the rules for serializing this property to JSON.
      *
-     * @param string|array|EncoderRule $rules
+     * @param string|array|EncoderRule $rules If a string is provided then it should be
+     * one or more rules delimited by a vertical bar "rule1|rule2|..." (see EncoderRule::define()).
+     * If an array is provided then elements can either be individual rules or EncoderRule objects.
+     *
      * @return $this
+     *
      * @throws HydrationException
      */
     public function encodeWith($rules): self
@@ -623,6 +632,7 @@ class Property
 
     /**
      * Get the name of the hydration method for this property.
+     *
      * @return string
      */
     public function getHydrateMethod(): string
@@ -641,6 +651,8 @@ class Property
     }
 
     /**
+     * Get the current options.
+     *
      * @return array
      */
     public function getOptions(): array
@@ -649,7 +661,7 @@ class Property
     }
 
     /**
-     * Check to see if this property is bound to a reflection property.
+     * Return any bound reflection property.
      *
      * @return ReflectionProperty|null
      */
@@ -804,8 +816,12 @@ class Property
     /**
      * Fluent constructor with target mapping.
      *
-     * @param string|array $property
+     * @param string|array $property If the property is a string, this method behaves like
+     * make(). If it is an array then the first element is the source property name, and the
+     * second is the property name in the object.
+     *
      * @return Property
+     *
      * @throws HydrationException
      */
     public static function makeAs($property): Property
@@ -830,7 +846,9 @@ class Property
      * Create an object suitable for hydration.
      *
      * @param string|object $value
+     *
      * @return object
+     *
      * @throws AssignmentException
      * @throws HydrationException
      */
@@ -926,7 +944,10 @@ class Property
     /**
      * Configure the property via a list of attributes.
      *
-     * @param array $options
+     * @param array $options The index of each array element is a method of Property, the
+     * array value will be passed to the method as an argument. If the value is an array,
+     * then it will be unpacked and passed as a series of arguments.
+     *
      * @return $this
      */
     public function set(array $options): self
@@ -997,7 +1018,7 @@ class Property
     }
 
     /**
-     * When set, cast the value of this property to an associative array before hydration.
+     * Control casting of the value of this property to an associative array before hydration.
      *
      * @param bool $castToArray
      *
@@ -1026,7 +1047,10 @@ class Property
     /**
      * Set a function that will be used to ensure the value of this property is valid before
      * hydration.
-     * @param Closure $fn
+     *
+     * @param Closure $fn The validation function. Arguments are ($value, $this), the value to be
+     * validated and the current Property.
+     *
      * @return $this
      */
     public function validate(Closure $fn): self

@@ -174,7 +174,7 @@ Loading can be either fault-tolerant or strict. Strict validation can either fai
 
 `composer require abivia/hydration`
 
-Hydration uses the Symphony parser for YAML.
+Hydration uses the YAML Symphony parser and will suggest it at install.
 
 
 ## Basic Use
