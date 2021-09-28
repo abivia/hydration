@@ -2,6 +2,8 @@
 
 namespace Abivia\Hydration;
 
+use ReflectionException;
+use ReflectionMethod;
 use function array_keys;
 use function array_shift;
 use function count;
@@ -34,6 +36,35 @@ class EncoderRule
         'scalar' => [],
         'transform' => ['min' => 1, 'argHelp' => 'methodName|Closure'],
     ];
+
+    /**
+     * Apply a transformation to a property.
+     *
+     * @param mixed $value The current/transformed property value. Passed by reference.
+     * @param object|null $source The object being encoded.
+     * @param Property|null $property The property being transformed.
+     *
+     * @throws HydrationException
+     * @throws ReflectionException
+     */
+    public function applyTransform(&$value, ?object $source, ?Property $property): void
+    {
+        $function = $this->arg(0);
+        if ($source !== null && is_string($function)) {
+            $subjectClass = get_class($source);
+            /**
+             * @var ReflectionMethod|null $reflectMethod
+             */
+            $reflectMethod = Hydrator::fetchReflection($subjectClass)['methods'][$function] ?? null;
+            if ($reflectMethod === null) {
+                throw new HydrationException("Method $subjectClass::$function not found.");
+            }
+            $reflectMethod->setAccessible(true);
+            $value = $reflectMethod->invoke($source, $value, $source, $property);
+        } elseif (is_callable($function)) {
+            $value = $function($value, $source, $property);
+        }
+    }
 
     /**
      * Get the value of the argument in the specified slot, or null if the slot is not defined.
@@ -92,11 +123,28 @@ class EncoderRule
     }
 
     /**
-     * Define the rule and its arguments
-     * @param string $command
-     * @param array $args
+     * Define the rule and its arguments.
+     *
+     * @param string $command A simple command verb or a rule definition of the form
+     * "command:arg1:arg2:...". The available commands are:
+     * - `array` The result is cast as an array.
+     * - `drop:condition` Conditions are blank, empty[:method], false, null, true, zero. the
+     * property is dropped from the output if its value matches the condition. For the "empty"
+     * test, the method defaults to `isEmpty`.
+     * - `order:<number>` Sets the order of appearance. Number is a float.
+     * - `scalar` Will cast a single-element array as a stand-alone element. That element can be
+     * an object or array, so "scalar" is a bit of a misnomer.
+     * - `transform:method` Applies the named method to the value. the method can be a string
+     * or a `Callable`. If the method is a string, it is called on the object being encoded. The
+     * transform is called with the arguments (mixed $value, object $source, Property $property).
+     * It is expected that the value is passed by reference.
+     *
+     * @param array $args If the $command is a command verb, these are the arguments for
+     * that command.
+     *
      * @return EncoderRule
-     * @throws HydrationException
+     *
+     * @throws HydrationException If the command is invalid or poorly structured.
      */
     public function define(string $command, ...$args): self
     {

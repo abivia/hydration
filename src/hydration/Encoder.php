@@ -6,6 +6,10 @@ use ReflectionException;
 use ReflectionMethod;
 use stdClass;
 
+/**
+ * Apply Property definitions to an object to generate a simplified stdClass object suitable
+ * for encoding into JSON/YAML/etc.
+ */
 class Encoder
 {
     /**
@@ -14,7 +18,7 @@ class Encoder
     protected array $properties = [];
 
     /**
-     * @var Property|null The property being encoded
+     * @var Property|null The property being encoded.
      */
     private ?Property $property = null;
 
@@ -85,9 +89,14 @@ class Encoder
     }
 
     /**
-     * @param mixed $value
-     * @param object|null $source
-     * @return bool
+     * Apply the rule set to a value.
+     *
+     * @param mixed $value The value being encoded. Passed by reference.
+     * @param object|null $source The object this value is a property of.
+     *
+     * @return bool Returns true if the value should be included in the encoded object,
+     * false if it should be skipped.
+     *
      * @throws HydrationException
      * @throws ReflectionException
      */
@@ -98,7 +107,7 @@ class Encoder
         foreach ($this->rules as $rule) {
             $command = $rule->command();
             switch ($command) {
-                case  'array':
+                case 'array':
                     $asArray = true;
                     break;
                 case 'drop':
@@ -110,10 +119,11 @@ class Encoder
                     $asScalar = true;
                     break;
                 case 'transform':
-                    $this->applyTransform($rule, $source, $value);
+                    $rule->applyTransform($value, $source, $this->property);
                     break;
             }
         }
+        // See if we should cast the result to an array.
         if ($asArray) {
             if (is_scalar($value)) {
                 $value = [$value];
@@ -124,6 +134,7 @@ class Encoder
                 $value = array_values($value ?? []);
             }
         }
+        // See if we should convert a single-valued array to a "scalar"
         if ($asScalar && is_array($value) && count($value) === 1) {
             $value = $value[0];
         }
@@ -132,36 +143,12 @@ class Encoder
     }
 
     /**
-     * @param EncoderRule $rule
-     * @param object|null $source
-     * @param mixed $value
-     * @throws HydrationException
-     * @throws ReflectionException
-     */
-    protected function applyTransform(EncoderRule $rule, ?object $source, &$value): void
-    {
-        $function = $rule->arg(0);
-        if ($source !== null && is_string($function)) {
-            $subjectClass = get_class($source);
-            /**
-             * @var ReflectionMethod|null $reflectMethod
-             */
-            $reflectMethod = Hydrator::fetchReflection($subjectClass)['methods'][$function] ?? null;
-            if ($reflectMethod === null) {
-                throw new HydrationException("Method $subjectClass::$function not found.");
-            }
-            $reflectMethod->setAccessible(true);
-            $value = $reflectMethod->invoke($source, $value, $this->property);
-        } elseif (is_callable($function)) {
-            $value = $function($value, $source, $this->property);
-        }
-    }
-
-    /**
      * Bind an object instance or class name.
      *
      * @param class-string|object $subject Name or instance of the class to bind the hydrator to.
+     *
      * @return $this
+     *
      * @throws HydrationException
      * @throws ReflectionException
      */
@@ -189,10 +176,12 @@ class Encoder
     /**
      * Apply encoding rules to a standalone value or object property.
      *
-     * @param mixed $value
-     * @param EncoderRule[] $rules
-     * @param object|null $source
-     * @return bool
+     * @param mixed $value The value to be encoded. Passed by reference.
+     * @param EncoderRule[] $rules A list of encoder rules to be applied to the value.
+     * @param object|null $source The object this value belongs to.
+     *
+     * @return bool True if the resulting value should be included in the encoded result.
+     *
      * @throws HydrationException
      * @throws ReflectionException
      */
@@ -205,7 +194,7 @@ class Encoder
     }
 
     /**
-     * Get the current property definitions (indexed by target).
+     * Get the current property definitions (indexed by target name).
      *
      * @return Property[]
      */
