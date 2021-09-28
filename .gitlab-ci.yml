@@ -7,6 +7,39 @@
 cache:
   paths:
   - vendor/
+mirror:
+  image: node:alpine
+  before_script:
+    # Install prerequisites
+    - 'which ssh-agent || (apk update && apk add openssh-client git)'
+  script:
+    ## Import SSH key
+    # Launch ssh-agent
+    - eval $(ssh-agent -s)
+    # Add private key from CI variable
+    - echo "$GH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+    # Create ~/.ssh folder if not exist
+    - mkdir -p ~/.ssh
+    # Restrict the folder privilege
+    - chmod 700 ~/.ssh
+    # Add GitHub key fingerprint
+    - echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+    ## Update GitHub mirror
+    # ssh connect to GitHub
+    - ssh -T git@github.com || ":" # (workaround) force exit code 0
+    # Add a new remote location called "mirror"
+    - git remote add mirror git@github.com:instancezero/hydration.git
+    # Discard changes before checking out branch
+    - git reset HEAD --hard
+    # Push "master" branch
+    - git checkout main && git push mirror main
+    # Uncomment below to push other branch(es), change "branchX" according to your need
+    #- git checkout branchX && git push mirror branchX
+  rules:
+    # Only trigger through push event in main branch
+    - if: '$CI_COMMIT_REF_NAME == "main" && $CI_PIPELINE_SOURCE == "push"'
+      when: always
 test:php7.4:
   interruptible: true
   except:
