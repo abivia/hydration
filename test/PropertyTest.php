@@ -61,6 +61,22 @@ class PropertyTest extends TestCase
         );
     }
 
+    public function testAssignArrayFromScalar()
+    {
+        $target = new PropertyJig();
+        $reflectClass = new ReflectionClass($target);
+        $reflectProp = $reflectClass->getProperty('arrayOfTestData');
+
+        $obj = Property::make('arrayOfTestData')
+            ->reflects($reflectProp)
+            ->key();
+
+        $data = 'one';
+        $status = $obj->assign($target, $data);
+        $this->assertTrue($status);
+        $this->assertEquals(['one'], $target->arrayOfTestData);
+    }
+
     public function testAssignArrayNullKey()
     {
         $target = new PropertyJig();
