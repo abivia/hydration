@@ -4,6 +4,7 @@
 namespace Abivia\Hydration\Test;
 
 require_once 'objects/DefaultConfig.php';
+require_once 'objects/PropertyJig.php';
 require_once 'objects/RequiredConfig.php';
 
 use Abivia\Hydration\EncoderRule;
@@ -12,6 +13,7 @@ use Abivia\Hydration\HydrationException;
 use Abivia\Hydration\Hydrator;
 use Abivia\Hydration\Property;
 use Abivia\Hydration\Test\objects\DefaultConfig;
+use Abivia\Hydration\Test\Objects\PropertyJig;
 use Abivia\Hydration\Test\Objects\RequiredConfig;
 use Exception;
 use PHPUnit\Framework\TestCase;
@@ -51,7 +53,7 @@ class ConfigurableMain
     public $subAssocP;
     public $subCallable;
     public $subClass;
-    public $subClass2;
+    public ?ConfigurableSub $subClass2 = null;
     public $subClassArray;
     public $subDynamic;
 
@@ -178,7 +180,10 @@ class ConfigurableMain
                     })
             )
             ->addProperty(Property::make('subClass', ConfigurableSub::class))
-            ->addProperty(Property::make('subClass2', ConfigurableSub::class))
+            ->addProperty(
+                Property::make('subClass2')
+                //->bind()
+            )
             ->addProperty(Property::make('subClassArray')
                 ->key()
                 ->bind(ConfigurableSub::class)
@@ -192,7 +197,7 @@ class ConfigurableMain
  * Subclass that can be created during configuration.
  * This class uses the trait's validation, which always returns true.
  */
-class ConfigurableSub
+class ConfigurableSub implements Hydratable
 {
     private static Hydrator $hydrator;
 
@@ -610,6 +615,33 @@ class HydratorTest extends TestCase
         $this->expectException(HydrationException::class);
         $this->expectExceptionMessage('No value provided');
         $obj->hydrate($config);
+    }
+
+    public function testReflectionType()
+    {
+        $reflectionInfo = Hydrator::fetchReflection(PropertyJig::class);
+        $result = [];
+        /**
+         * @var ReflectionProperty $property
+         */
+        foreach ($reflectionInfo['properties'] as $property) {
+            $result[$property->getName()] = Hydrator::reflectionType($property);
+        }
+        $expect = [
+            'arrayOfTestData' => 'array',
+            'arrayProtected' => 'array',
+            'blocked' => 'string',
+            'evenInt' => 'int',
+            'ignorable' => 'string',
+            'objectClass' => 'object',
+            'objectClassArray' => 'array',
+            'internalName' => 'string',
+            'privateString' => 'string',
+            'subClass' => RequiredConfig::class,
+            'prop' => null,
+            'unspecified' => 'string',
+        ];
+        $this->assertEquals($expect, $result);
     }
 
     /**

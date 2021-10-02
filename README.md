@@ -69,23 +69,24 @@ validation, etc.
 
 ```php
 use Abivia\Hydration\Hydrator;
+use Abivia\Hydration\Hydratable;
 
-class MyClass {
+class MyClass implements Hydratable
+ {
     private static Hydrator $hydrator;
     protected $bar;
     private $foo;
     
     public function hydrate($config): bool {
         if (!isset(self::$hydrator)) {
-            self::$hydrator = Hydrator::make(self::class);
+            self::$hydrator = Hydrator::make(self::class, Hydrator::ALL_NONSTATIC_PROPERTIES);
         }
         return self::$hydrator->hydrate($this, $config);
     }
 }
 
-$config = json_decode('{"bar": "This is bar", "foo": "This is foo"}');
 $myObject = new MyClass();
-$myObject->hydrate($config);
+$myObject->hydrate('{"bar": "This is bar", "foo": "This is foo"}');
 print_r($myObject);
 ```
 Will output:

@@ -198,28 +198,11 @@ class Hydrator
                     continue;
                 }
             }
-            try {
-                // See if we can establish a binding to classes that implement Hydratable.
-                /**
-                 * @var ReflectionType|null (ReflectionNamedType in PHP 8.0+)
-                 */
-                $reflectType = $reflectProperty->getType();
-                if ($reflectType !== null) {
-                    if (method_exists($reflectType, 'getName')) {
-                        $forClass = $reflectType->getName();
-                    } else {
-                        $forClass = (string) $reflectType;
-                    }
-                    if ($forClass[0] === '?') {
-                        $forClass = substr($forClass, 1);
-                    }
-                    // If the class is "array" or the like, this will throw an exception.
-                    $reflectClass = new ReflectionClass($forClass);
-                    if (in_array(Hydratable::class, $reflectClass->getInterfaceNames())) {
-                        $this->targetProperties[$propName]->bind($forClass);
-                    }
-                }
-            } catch (ReflectionException $ex) {
+            // See if we can establish a binding to classes that implement Hydratable.
+            $forClass = self::reflectionType($reflectProperty);
+            /** @var class-string $forClass */
+            if (self::isHydratable($forClass)) {
+                $this->targetProperties[$propName]->bind($forClass);
             }
             $this->targetProperties[$propName]->reflects($reflectProperty);
         }
@@ -527,6 +510,29 @@ class Hydrator
     }
 
     /**
+     * See if a class implements Hydratable.
+     *
+     * @param class-string|null $forClass
+     *
+     * @return bool
+     */
+    public static function isHydratable(?string $forClass): bool
+    {
+        if ($forClass !== null) {
+            try {
+                // If the class is "array" or the like, this will throw an exception.
+                $reflectClass = new ReflectionClass($forClass);
+                if (in_array(Hydratable::class, $reflectClass->getInterfaceNames())) {
+                    return true;
+                }
+            } catch (ReflectionException $ex) {
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Log an error.
      *
      * @param string|array $message An error message to log or an array of messages to log
@@ -606,6 +612,34 @@ class Hydrator
         $this->options['source'] = 'object';
 
         return $config;
+    }
+
+    /**
+     * Get the type of the passed property.
+     *
+     * @param ReflectionProperty $reflectProperty
+     *
+     * @return string|class-string|null
+     */
+    public static function reflectionType(ReflectionProperty $reflectProperty): ?string
+    {
+        /**
+         * @var ReflectionType|null (ReflectionNamedType in PHP 8.0+)
+         */
+        $reflectType = $reflectProperty->getType();
+        if ($reflectType === null) {
+            $forClass = null;
+        } else {
+            if (method_exists($reflectType, 'getName')) {
+                $forClass = $reflectType->getName();
+            } else {
+                $forClass = (string) $reflectType;
+            }
+            if ($forClass[0] === '?') {
+                $forClass = substr($forClass, 1);
+            }
+        }
+        return $forClass;
     }
 
 }

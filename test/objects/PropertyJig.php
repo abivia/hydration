@@ -42,7 +42,12 @@ class PropertyJig
      */
     protected string $internalName;
 
-    private string $privateString = 'initial';
+    private ?string $privateString = 'initial';
+
+    /**
+     * @var RequiredConfig|null for testing Hydrator::reflectionType();
+     */
+    protected ?RequiredConfig $subClass;
 
     /**
      * @var mixed Generic test property.

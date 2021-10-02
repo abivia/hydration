@@ -921,7 +921,16 @@ class Property
             } catch (ReflectionException $ex) {
                 throw new HydrationException($ex->getMessage());
             }
+        }
 
+        if ($this->binding === null && $this->classClosure === null) {
+            /** @var class-string $forClass */
+            $forClass = Hydrator::reflectionType($this->reflection);
+            if (Hydrator::isHydratable($forClass)) {
+                $this->binding = $forClass;
+                $this->hydrateMethod = 'hydrate';
+                $this->mode = self::MODE_CLASS;
+            }
         }
 
         return $this;

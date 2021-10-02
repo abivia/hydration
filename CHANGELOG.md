@@ -1,5 +1,11 @@
 # Change log for Abivia\Hydration
 
+## 2.3.0
+- Properties that have not been bound to a class or a closure (via Property::with())
+now use Reflection to see if the property has a class type that implements Hydratable.
+If it does, then the property is automatically bound to the class.
+- Documentation updates.
+
 ## 2.2.2
 - Moved applyTransform logic from Encoder to EncoderRule.
 - Documentation updates.
