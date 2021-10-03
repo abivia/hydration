@@ -38,7 +38,7 @@ mirror:
     #- git checkout branchX && git push mirror branchX
   rules:
     # Only trigger through push event in main branch
-    - if: '$CI_COMMIT_REF_NAME == "main" && $CI_PIPELINE_SOURCE == "push"'
+    - if: $CI_COMMIT_REF_NAME == "main" && $CI_PIPELINE_SOURCE =~ /^(push|web)/
       when: always
 test:php7.4:
   interruptible: true
