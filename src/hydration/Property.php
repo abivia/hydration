@@ -88,6 +88,11 @@ class Property
     protected string $getMethod = '';
 
     /**
+     * @var bool Set when we should pass the property when calling the getter.
+     */
+    protected bool $getWithProperty = true;
+
+    /**
      * @var string The method to call when hydrating enclosed objects.
      */
     protected string $hydrateMethod = 'hydrate';
@@ -121,6 +126,11 @@ class Property
      * @var string Name of a method to be used to set a property.
      */
     protected string $setMethod = '';
+
+    /**
+     * @var bool Set when we should pass the property when calling the setter.
+     */
+    protected bool $setWithProperty = true;
 
     /**
      * @var string Name of this property in the source data.
@@ -265,7 +275,11 @@ class Property
 
             // If the application is handling the assignment, pass it off
             if ($this->setMethod !== '') {
-                if (!$target->{$this->setMethod}($obj, $this)) {
+                $args = [$obj];
+                if ($this->setWithProperty) {
+                    $args[] = $this;
+                }
+                if (!$target->{$this->setMethod}(...$args)) {
                     $this->errors[] = "Failed to set $this->targetProperty"
                         . " via $this->setMethod()." ;
                 }
@@ -387,7 +401,11 @@ class Property
         }
         try {
             if ($this->setMethod !== '') {
-                if (!$target->{$this->setMethod}($value, $this)) {
+                $args = [$value];
+                if ($this->setWithProperty) {
+                    $args[] = $this;
+                }
+                if (!$target->{$this->setMethod}(...$args)) {
                     $this->errors[] = "Failed to set $this->targetProperty via $this->setMethod().";
                 }
             } else {
@@ -681,16 +699,17 @@ class Property
     }
 
     /**
-     * Specify a method in the target class used to set the value of this property.
+     * Specify a method in the target class used to get the value of this property.
      *
-     * @param string $method A function (Property $property):mixed that returns the value of the
+     * @param string $method A function ([Property $property]):mixed that returns the value of the
      * property.
      *
      * @return $this
      */
-    public function getter(string $method): self
+    public function getter(string $method, bool $passProperty = true): self
     {
         $this->getMethod = $method;
+        $this->getWithProperty = $passProperty;
 
         return $this;
     }
@@ -706,7 +725,8 @@ class Property
     public function getValue(object $source)
     {
         if ($this->getMethod !== '') {
-            return $source->{$this->getMethod}($this);
+            $args = $this->getWithProperty ? [$this] : [];
+            return $source->{$this->getMethod}(...$args);
         }
         if ($this->reflection === null) {
             throw new HydrationException(
@@ -816,7 +836,7 @@ class Property
     /**
      * Fluent constructor with target mapping.
      *
-     * @param string|array $property If the property is a string, this method behaves like
+     * @param string|string[] $property If the property is a string, this method behaves like
      * make(). If it is an array then the first element is the source property name, and the
      * second is the property name in the object.
      *
@@ -826,6 +846,9 @@ class Property
      */
     public static function makeAs($property): Property
     {
+        /**
+         * @psalm-suppress RedundantConditionGivenDocblockType
+         */
         if (
             is_array($property)
             && isset($property[0]) && is_string($property[0])
@@ -992,14 +1015,15 @@ class Property
     /**
      * Specify a method in the target class used to set the value of this property.
      *
-     * @param string $method The method(mixed $value, Property $property):bool takes the proposed
+     * @param string $method The method(mixed $value[, Property $property]):bool takes the proposed
      * property value and Property as arguments, returns true on success.
      *
      * @return $this
      */
-    public function setter(string $method): self
+    public function setter(string $method, bool $passProperty = true): self
     {
         $this->setMethod = $method;
+        $this->setWithProperty = $passProperty;
 
         return $this;
     }

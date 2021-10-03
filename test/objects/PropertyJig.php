@@ -3,6 +3,8 @@
 
 namespace Abivia\Hydration\Test\Objects;
 
+use Abivia\Hydration\Property;
+
 /**
  * Contains properties for most of the tests
  */
@@ -26,7 +28,9 @@ class PropertyJig
     /**
      * @var int This property has a validator ensuring the assigned number is even.
      */
-    protected int $evenInt;
+    protected int $evenInt = 2;
+
+    public bool $getPropertyIsNull;
 
     /**
      * @var string Property used to test the "ignore" state
@@ -44,6 +48,8 @@ class PropertyJig
 
     private ?string $privateString = 'initial';
 
+    public bool $setPropertyIsNull;
+
     /**
      * @var RequiredConfig|null for testing Hydrator::reflectionType();
      */
@@ -59,8 +65,9 @@ class PropertyJig
      */
     protected string $unspecified;
 
-    public function getEvenInt(): int
+    public function getEvenInt(?Property $property = null): int
     {
+        $this->getPropertyIsNull = $property === null;
         return $this->evenInt;
     }
 
@@ -86,8 +93,9 @@ class PropertyJig
         return true;
     }
 
-    public function setIgnorable($value): bool
+    public function setIgnorable($value, ?Property $property = null): bool
     {
+        $this->setPropertyIsNull = $property === null;
         if (substr($value, 0, 3) === 'bad') {
             return false;
         }

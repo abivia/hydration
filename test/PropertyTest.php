@@ -259,6 +259,13 @@ class PropertyTest extends TestCase
         $status = $obj->assign($target, 'viaMethod');
         $this->assertTrue($status);
         $this->assertEquals('viaMethod', $target->ignorable);
+        $this->assertFalse($target->setPropertyIsNull);
+
+        $obj->setter('setIgnorable', false);
+        $status = $obj->assign($target, 'viaMethod2');
+        $this->assertTrue($status);
+        $this->assertEquals('viaMethod2', $target->ignorable);
+        $this->assertTrue($target->setPropertyIsNull);
 
         $status = $obj->assign($target, 'badViaMethod');
         $this->assertFalse($status);
@@ -467,6 +474,21 @@ class PropertyTest extends TestCase
         $this->assertCount(2, $rules);
         $this->assertEquals('drop', $rules[0]->command());
         $this->assertEquals('order', $rules[1]->command());
+    }
+
+    public function testGetter()
+    {
+        $source = new PropertyJig();
+
+        $obj = Property::make('evenInt')
+            ->getter('getEvenInt');
+
+        $this->assertEquals(2, $obj->getValue($source));
+        $this->assertFalse($source->getPropertyIsNull);
+
+        $obj->getter('getEvenInt', false);
+        $this->assertEquals(2, $obj->getValue($source));
+        $this->assertTrue($source->getPropertyIsNull);
     }
 
     public function testGetValueProtected()

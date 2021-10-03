@@ -1,5 +1,9 @@
 # Change log for Abivia\Hydration
 
+## 2.3.1
+- Add bool $passProperty argument (default true) to Property::getter() and Property::setter() to disable
+passing of the property as an argument to getter/setter methods. Change is backwards compatible.
+
 ## 2.3.0
 - Properties that have not been bound to a class or a closure (via Property::with())
 now use Reflection to see if the property has a class type that implements Hydratable.
