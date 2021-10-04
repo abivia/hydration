@@ -142,6 +142,26 @@ class PropertyTest extends TestCase
         $this->assertEquals('hello', $target->getObjectClass()->arg);
     }
 
+    public function testAssignFactory()
+    {
+        $target = new PropertyJig();
+        $reflectClass = new ReflectionClass($target);
+        $reflectProp = $reflectClass->getProperty('objectClass');
+
+        $obj = Property::make('objectClass')
+            ->reflects($reflectProp)
+            ->factory(function ($value, Property $property): object {
+                return new \DateTime($value[0], new \DateTimeZone($value[1]));
+            });
+
+        $json = '["2000-01-01", "America/Toronto"]';
+        $config = json_decode($json);
+        $status = $obj->assign($target, $config);
+        $this->assertTrue($status);
+
+        $this->assertInstanceOf(\DateTime::class, $target->getObjectClass());
+    }
+
     public function testAssignInstance()
     {
         $target = new PropertyJig();
@@ -600,7 +620,7 @@ class PropertyTest extends TestCase
         $obj->set(['ignore' => true]);
         $this->assertTrue($obj->getIgnored());
 
-        $obj->set(['with' => [function () {
+        $obj->set(['bind' => [function () {
         }, 'someMethod']]);
         $this->assertEquals('someMethod', $obj->getHydrateMethod());
     }

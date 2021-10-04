@@ -6,6 +6,8 @@
 Hydration is designed to make JSON and YAML configuration files more user intuitive
 while providing robust validation and smart creation of data structures.
 
+Improved documentation is available on the [Hydration Site](https://hydration.abivia.com).
+
 Hydration can simplify configuration files to improve usability. Instead of 
 ```json
 {

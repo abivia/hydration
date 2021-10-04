@@ -1,5 +1,10 @@
 # Change log for Abivia\Hydration
 
+## 2.4.0
+- Add Property::factory(Closure $fn) to allow for more complex hydration of objects that
+don't implement Hydratable.
+- Deprecate Property::construct().
+
 ## 2.3.1
 - Add bool $passProperty argument (default true) to Property::getter() and Property::setter() to disable
 passing of the property as an argument to getter/setter methods. Change is backwards compatible.

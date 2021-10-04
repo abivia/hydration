@@ -24,7 +24,9 @@ class Property
      */
     protected const MODE_CLASS = 1;
     protected const MODE_CONSTRUCT = 2;
-    protected const MODE_SIMPLE = 3;
+    protected const MODE_FACTORY = 4;
+    protected const MODE_SIMPLE = 8;
+    protected const PRE_HYDRATED = self::MODE_CONSTRUCT | self::MODE_FACTORY;
 
     /**
      * @var string|null The name of the property within this property's value to use as an array
@@ -81,6 +83,11 @@ class Property
      * @var array Error messages generated during assignment
      */
     protected array $errors = [];
+
+    /**
+     * @var Closure|null Closure for creating a target object in factory mode.
+     */
+    protected ?Closure $factoryClosure = null;
 
     /**
      * @var string Name of a method to be used to get a property.
@@ -351,7 +358,7 @@ class Property
             $value = [$value];
         }
         try {
-            if (is_array($value) && $this->mode !== self::MODE_CONSTRUCT) {
+            if (is_array($value) && ($this->mode & self::PRE_HYDRATED) === 0) {
                 $tempArray = $this->assignArray($target, $value);
                 if ($tempArray === null) {
                     return;
@@ -367,8 +374,9 @@ class Property
                 }
                 $obj = $this->makeTarget($value);
 
-                // In construct mode, $value was used to hydrate $obj via constructor.
-                if ($this->mode !== self::MODE_CONSTRUCT) {
+                // In construct/factory modes, $value was used to hydrate $obj in
+                // makeTarget().
+                if (($this->mode & self::PRE_HYDRATED) === 0) {
                     $this->checkHydrateMethod($obj);
                     $obj->{$this->hydrateMethod}($value, $this->options);
                 }
@@ -529,6 +537,8 @@ class Property
     /**
      * Set a class to be created via constructor.
      *
+     * @deprecated Use factory()
+     *
      * @param class-string $className Name of the class to be created.
      * @param bool $unpack If the data to be passed is an array, unpack it to individual arguments.
      *
@@ -544,6 +554,29 @@ class Property
         if ($this->arrayMode) {
             throw new HydrationException(
                 "Can't use construct() and key() with the same property."
+            );
+        }
+
+        return $this;
+    }
+
+    /**
+     * Set a class to be created via constructor.
+     *
+     * @param Closure $fn Closure expected to create and hydrate a target object. Takes
+     * the property value and the Property definition as arguments.
+     *
+     * @return $this
+     *
+     * @throws HydrationException
+     */
+    public function factory(Closure $fn): self
+    {
+        $this->factoryClosure = $fn;
+        $this->mode = self::MODE_FACTORY;
+        if ($this->arrayMode) {
+            throw new HydrationException(
+                "Can't use factory() and key() with the same property."
             );
         }
 
@@ -801,9 +834,9 @@ class Property
         $this->arrayKeyClosure = null;
         $this->arrayMode = $key !== false;
         if ($this->arrayMode) {
-            if ($this->mode === self::MODE_CONSTRUCT) {
+            if ($this->mode & self::PRE_HYDRATED) {
                 throw new HydrationException(
-                    "Can't use construct() and key() with the same property."
+                    "Can't use construct() or factory) and key() on the same property."
                 );
             }
             if (is_string($key)) {
@@ -877,6 +910,10 @@ class Property
      */
     protected function makeTarget($value): object
     {
+        if ($this->mode === self::MODE_FACTORY) {
+            /** @psalm-suppress PossiblyNullFunctionCall */
+            return ($this->factoryClosure)($value, $this);
+        }
         $ourClass = $this->classClosure === null ? $this->binding
             : ($this->classClosure)($value, $this);
         if (!is_string($ourClass)) {
@@ -890,18 +927,14 @@ class Property
         } else {
             try {
                 if ($this->mode === self::MODE_CONSTRUCT) {
-                    if ($this->binding === null) {
-                        throw new HydrationException(
-                            "Unable to create instance for \$$this->sourceProperty "
-                            . " no class binding has been set."
-                        );
-                    }
                     if ($this->unpackArguments) {
                         if (is_scalar($value)) {
                             $value = [$value];
                         }
+                        /** @psalm-suppress UndefinedClass */
                         $obj = new $this->binding(...$value);
                     } else {
+                        /** @psalm-suppress UndefinedClass */
                         $obj = new $this->binding($value);
                     }
                 } else {
@@ -931,7 +964,7 @@ class Property
     public function reflects($reflectProperty): self
     {
         if ($this->setMethod !== '') {
-            Throw new HydrationException(
+            throw new HydrationException(
                 "Can't assign reflection to a property that uses a getter or setter."
             );
         }
@@ -1082,7 +1115,8 @@ class Property
      * hydration.
      *
      * @param Closure $fn The validation function. Arguments are ($value, $this), the value to be
-     * validated and the current Property.
+     * validated and the current Property. If the function's return value evaluates to true if the
+     * value is considered to be valid.
      *
      * @return $this
      */
@@ -1095,15 +1129,15 @@ class Property
     /**
      * Callback that uses the property value to return a suitable object for hydration.
      *
-     * @param Closure $callback A function (mixed $value, ?array $options):string that takes the
+     * @param Closure $callback A function (mixed $value, Property $property):string that takes the
      * property value and Property as arguments and returns the appropriate class name.
+     * @param string $method Unused, deprecated.
      *
      * @return $this
      */
     public function with(Closure $callback, string $method = 'hydrate'): self
     {
         $this->classClosure = $callback;
-        $this->hydrateMethod = $method;
         $this->mode = self::MODE_CLASS;
 
         return $this;
