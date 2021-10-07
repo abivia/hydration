@@ -1,5 +1,12 @@
 # Change log for Abivia\Hydration
 
+## 2.5.0
+- Added Hydrator::decode().
+- Ongoing code/doc cleanup.
+- Stripped out old inline documentation.
+- added CONTRIBUTING.md.
+- Updated contact email.
+
 ## 2.4.0
 - Add Property::factory(Closure $fn) to allow for more complex hydration of objects that
 don't implement Hydratable.

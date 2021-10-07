@@ -19,7 +19,8 @@
     "license": "MIT",
     "authors": [
         {
-            "name": "Alan Langford"
+            "name": "Alan Langford",
+            "email": "hydration@abivia.com"
         }
     ],
     "scripts": {
