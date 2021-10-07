@@ -50,14 +50,14 @@ class Hydrator
     private array $errorLog = [];
 
     /**
-     * @var array The options passed to the last hydrate() call, merged with defaults.
-     */
-    private array $options = [];
-
-    /**
      * @var array Options stack for recursive hydration calls.
      */
     private array $optionStack = [];
+
+    /**
+     * @var array The options passed to the last hydrate() call, merged with defaults.
+     */
+    private array $options = [];
 
     /**
      * @var array Reflection results, indexed by class.
@@ -263,6 +263,58 @@ class Hydrator
     }
 
     /**
+     * @param string|object $config
+     * @param array $options
+     * @return mixed
+     * @throws HydrationException
+     */
+    public function decode($config, array $options)
+    {
+        if (($this->options['source'] ?? '') !== 'object') {
+            if (!is_string($config)) {
+                throw new HydrationException(
+                    "Cannot decode" . gettype($config) . ". Not a string."
+                );
+            }
+            $config = $this->parse($config);
+        }
+
+        return $config;
+    }
+
+    /**
+     * Prepare an object for encoding.
+     *
+     * @param object $source An object to be prepared for encoding.
+     * @param EncoderRule|array|null $rules Encoding rules to be applied to the object.
+     *
+     * @return mixed
+     *
+     * @throws HydrationException
+     * @throws ReflectionException
+     * @noinspection PhpReturnDocTypeMismatchInspection
+     */
+    public function encode(object $source, $rules = [])
+    {
+        $this->checkSubject(true);
+
+        // Get encoding rules for all defined properties
+        if (!isset($this->encoder)) {
+            $this->encoder = new Encoder($this->targetProperties);
+        }
+
+        $result = $this->encoder->encode($source);
+
+        if (!is_array($rules)) {
+            $rules = [$rules];
+        }
+
+        $this->encoder->encodeProperty($result, $rules, $source);
+
+        return $result;
+    }
+
+    /**
      * Load and cache reflection information for the named class.
      *
      * @param class-string $subjectClass the name of the class we're loading.
@@ -417,14 +469,8 @@ class Hydrator
             $this->options = array_merge(['source' => 'json', 'strict' => true], $options);
             $this->options['source'] = strtolower($this->options['source']);
 
-            if ($this->options['source'] !== 'object') {
-                if (!is_string($config)) {
-                    throw new HydrationException(
-                        "Cannot parse" . gettype($config) . ". Not a string."
-                    );
-                }
-                $config = $this->parse($config);
-            }
+            // Ensure the config data is decoded
+            $config = $this->decode($config, $this->options);
 
             // Add/overwrite the parent reference for use by child objects.
             $subOptions = array_merge($this->options, ['parent' => &$target]);
@@ -473,38 +519,6 @@ class Hydrator
         } finally {
             array_pop($this->optionStack);
         }
-
-        return $result;
-    }
-
-    /**
-     * Prepare an object for encoding.
-     *
-     * @param object $source An object to be prepared for encoding.
-     * @param EncoderRule|array|null $rules Encoding rules to be applied to the object.
-     *
-     * @return mixed
-     *
-     * @throws HydrationException
-     * @throws ReflectionException
-     * @noinspection PhpReturnDocTypeMismatchInspection
-     */
-    public function encode(object $source, $rules = [])
-    {
-        $this->checkSubject(true);
-
-        // Get encoding rules for all defined properties
-        if (!isset($this->encoder)) {
-            $this->encoder = new Encoder($this->targetProperties);
-        }
-
-        $result = $this->encoder->encode($source);
-
-        if (!is_array($rules)) {
-            $rules = [$rules];
-        }
-
-        $this->encoder->encodeProperty($result, $rules, $source);
 
         return $result;
     }
@@ -563,7 +577,8 @@ class Hydrator
     public static function make(
         $subject = null,
         int $filter = ReflectionProperty::IS_PUBLIC
-    ): self {
+    ): self
+    {
         $instance = new self();
         if ($subject !== null) {
             $instance->bind($subject, $filter);
@@ -599,9 +614,9 @@ class Hydrator
                 $config = Yaml::parse($config);
                 break;
             }
-            default: {
+            default:
+            {
                 throw new HydrationException("Unknown source data format: $source.");
-
             }
         }
         if ($config === null) {
@@ -633,7 +648,7 @@ class Hydrator
             if (method_exists($reflectType, 'getName')) {
                 $forClass = $reflectType->getName();
             } else {
-                $forClass = (string) $reflectType;
+                $forClass = (string)$reflectType;
             }
             if ($forClass[0] === '?') {
                 $forClass = substr($forClass, 1);
