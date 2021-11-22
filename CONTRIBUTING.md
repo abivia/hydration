@@ -2,9 +2,9 @@
 
 First off, thanks for taking the time to read this! :+1:
 
-The following is a set of guidelines for contributing to Hydration, which is hosted in the
+The following is a set of guidelines for contributing to Hydration, which is hosted in
 [on GitLab](https://gitlab.com/abivia/hydration) and mirrored to
-[GitHub](https://github.com/instancezero/hydration). These are mostly guidelines, not rules.
+[GitHub](https://github.com/abivia/hydration). These are mostly guidelines, not rules.
 Use your best judgment, and feel free to propose changes to this document in a pull request.
 
 ## Reporting issues
