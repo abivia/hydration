@@ -1,5 +1,9 @@
 # Change log for Abivia\Hydration
 
+## 2.5.1
+- Update gitlab->github.
+- Remove gitlab->github mirroring from CI.
+
 ## 2.5.0
 - Added Hydrator::decode().
 - Ongoing code/doc cleanup.

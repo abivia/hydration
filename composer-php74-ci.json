@@ -2,7 +2,7 @@
     "name": "abivia/hydration",
     "description": "Support for creating complex nested class structures from JSON/YAML objects.",
     "keywords": ["config", "configuration", "deserialization", "hydration", "json", "yaml"],
-    "homepage": "https://gitlab.com/abivia/hydration",
+    "homepage": "https://github.com/abivia/hydration",
     "type": "library",
     "require": {
         "php": ">=7.4|^8.0",
@@ -25,7 +25,7 @@
         "psalm": "vendor/bin/psalm --config=psalm.xml"
     },
     "support": {
-        "issues": "https://gitlab.com/abivia/hydration/issues"
+        "issues": "https://github.com/abivia/hydration/issues"
     },
     "autoload": {
         "psr-4": { "Abivia\\Hydration\\":  "src/hydration"}
