@@ -590,7 +590,7 @@ class Hydrator
      * Parse a JSON/YAML input string into an object.
      *
      * @param string $config The configuration in JSON or YAML format.
-     *
+     * @param array $options source element should be one of json|object|yaml, default json.
      * @return mixed The decoded data.
      *
      * @throws HydrationException If the data isn't valid for the selected method or if the
@@ -598,15 +598,18 @@ class Hydrator
      */
     public static function parse(string $config, array &$options)
     {
-        $source = is_string($options['source']) ? $options['source'] : null;
-        if ($source === null) {
-            throw new HydrationException("Source is either not set or not a string.");
+        $source = $options['source'] ?? 'json';
+        if (!is_string($source)) {
+            throw new HydrationException("Source is not a string.");
         }
         switch ($source) {
             case 'json':
             {
                 $config = json_decode($config);
                 break;
+            }
+            case 'object': {
+                return $config;
             }
             case 'yaml':
             {

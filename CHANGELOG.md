@@ -1,5 +1,8 @@
 # Change log for Abivia\Hydration
 
+## 2.6.1
+- Bugfix: Hydrator::parse() did not handle an empty options array correctly.
+
 ## 2.6.0
 - Make Hydrator::parse() static and public.
 
