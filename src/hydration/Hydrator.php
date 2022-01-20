@@ -11,7 +11,6 @@ use ReflectionType;
 use Symfony\Component\Yaml\Yaml;
 use function array_merge;
 use function array_pop;
-use function array_push;
 use function in_array;
 use function is_array;
 use function is_object;
@@ -270,13 +269,13 @@ class Hydrator
      */
     public function decode($config, array $options)
     {
-        if (($this->options['source'] ?? '') !== 'object') {
+        if (($options['source'] ?? '') !== 'object') {
             if (!is_string($config)) {
                 throw new HydrationException(
                     "Cannot decode" . gettype($config) . ". Not a string."
                 );
             }
-            $config = $this->parse($config);
+            $config = $this->parse($config, $this->options);
         }
 
         return $config;
@@ -458,7 +457,7 @@ class Hydrator
     public function hydrate(object $target, $config, array $options = []): bool
     {
         $this->checkSubject(true);
-        array_push($this->optionStack, $this->options);
+        $this->optionStack[] = $this->options;
         try {
             $result = true;
 
@@ -597,9 +596,9 @@ class Hydrator
      * @throws HydrationException If the data isn't valid for the selected method or if the
      * method is not recognized.
      */
-    protected function parse(string $config)
+    public static function parse(string $config, array &$options)
     {
-        $source = is_string($this->options['source']) ? $this->options['source'] : null;
+        $source = is_string($options['source']) ? $options['source'] : null;
         if ($source === null) {
             throw new HydrationException("Source is either not set or not a string.");
         }
@@ -624,7 +623,7 @@ class Hydrator
                 "Error parsing source data as $source."
             );
         }
-        $this->options['source'] = 'object';
+        $options['source'] = 'object';
 
         return $config;
     }

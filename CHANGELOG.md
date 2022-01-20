@@ -1,5 +1,8 @@
 # Change log for Abivia\Hydration
 
+## 2.6.0
+- Make Hydrator::parse() static and public.
+
 ## 2.5.1
 - Update gitlab->github.
 - Remove gitlab->github mirroring from CI.
