@@ -12,11 +12,13 @@ your best judgment, and feel free to propose changes to this document in a pull 
 Issues should be reported to the [Issue Tracker](https://github.com/abivia/hydration/issues). This
 includes bugs, questions, pull requests, and documentation issues.
 
+Security issues should be sent by email to [foss@abivia.com](mailto:foss@abivia.com). 
+
 ## Code of Conduct
 
 This project and everyone participating in it is governed by the Contributor Code of Conduct
 (see below). By participating, you are expected to uphold this code. Please report unacceptable
-behavior to [hydration@abivia.com](mailto:hydration@abivia.com).
+behavior to [foss@abivia.com](mailto:foss@abivia.com).
 
 ## Contributor Covenant Code of Conduct
 
@@ -69,7 +71,7 @@ project may be further defined and clarified by project maintainers.
 ### Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be reported by contacting
-the project at [hydration@abivia.com](mailto:hydration@abivia.com). All complaints will be reviewed
+the project at [foss@abivia.com](mailto:foss@abivia.com). All complaints will be reviewed
 and investigated and will result in a response that is deemed necessary and appropriate to the
 circumstances. The project team is obligated to maintain confidentiality with regard to the reporter
 of an incident. Further details of specific enforcement policies may be posted separately.
