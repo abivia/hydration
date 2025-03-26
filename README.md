@@ -9,6 +9,7 @@ easily configured interface.
 
 
 ## Overview
+
 Hydration:
 - Populates complex data structures from user editable JSON or YAML sources.
 - Allows your application to validate inputs, including ensuring that required properties
