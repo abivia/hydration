@@ -165,7 +165,7 @@ class Property
      * @param string $property The name of this property in the source data.
      * @param class-string|null $binding Optional name of a class to store the property value into.
      */
-    public function __construct(string $property, string $binding = null)
+    public function __construct(string $property, ?string $binding = null)
     {
         $this->sourceProperty = $property;
         $this->targetProperty = $property;
