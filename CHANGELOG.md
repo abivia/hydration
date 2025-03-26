@@ -1,5 +1,8 @@
 # Change log for Abivia\Hydration
 
+## 2.7.0
+- Minimum PHP version raised to 8.1. Deprecation notice in PHP 8.4 fixed.
+
 ## 2.6.1
 - Bugfix: Hydrator::parse() did not handle an empty options array correctly.
 
