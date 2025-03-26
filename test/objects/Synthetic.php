@@ -51,7 +51,7 @@ class Synthetic implements Hydratable, JsonSerializable
      * @throws ReflectionException
      * @throws HydrationException
      */
-    public function jsonSerialize()
+    public function jsonSerialize(): mixed
     {
         return self::$hydrator->encode($this);
     }
